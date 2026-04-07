@@ -1,0 +1,28 @@
+name: contract-clause-analyzer
+version: "1.0.0"
+description: "Real-world legal contract clause analysis environment for AI agent evaluation. Agents classify clauses, assess risk, and rewrite problematic language."
+author: "vinay"
+tags:
+  - openenv
+  - real-world
+  - legal
+  - contract-analysis
+  - nlp
+tasks:
+  - name: clause-classify
+    description: "Classify a single contract clause into one of 10 legal categories (e.g., indemnification, termination, warranty)."
+    difficulty: easy
+    max_steps: 1
+  - name: risk-assess
+    description: "Assess risk levels and identify specific legal issues across 3-4 contract clauses."
+    difficulty: medium
+    max_steps: 4
+  - name: clause-rewrite
+    description: "Rewrite a problematic contract clause to fix legal issues while preserving intent. Requires issue identification, rewrite, and justification."
+    difficulty: hard
+    max_steps: 3
+endpoints:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  health: GET /health

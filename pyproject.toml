@@ -1,0 +1,17 @@
+[project]
+name = "contract-clause-analyzer"
+version = "1.0.0"
+description = "Real-world legal contract clause analysis environment for AI agent evaluation."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openenv-core>=0.2.0",
+    "fastapi",
+    "uvicorn",
+    "slowapi",
+    "openai",
+    "pydantic"
+]
+
+[project.scripts]
+server = "server.app:main"
