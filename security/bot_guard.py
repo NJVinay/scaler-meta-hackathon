@@ -4,6 +4,7 @@ security/bot_guard.py — Browser trap / bot detection layer.
 Honeypot endpoints that flag and temporarily block IPs that probe
 common attack surfaces (/.env, /admin, /wp-admin, etc.).
 """
+
 import time
 from fastapi import FastAPI, Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware

@@ -4,6 +4,7 @@ gemini_client.py — Gemini 3 Pro (Antigravity) client via OpenAI-compatible SDK
 Uses environment variables only — never hardcoded credentials.
 Supports thinking_config with configurable thinking_level.
 """
+
 import os
 from openai import OpenAI
 
@@ -23,8 +24,7 @@ def build_client() -> OpenAI:
 
     if not api_key:
         raise EnvironmentError(
-            "HF_TOKEN or API_KEY must be set. "
-            "See .env.example for required variables."
+            "HF_TOKEN or API_KEY must be set. See .env.example for required variables."
         )
     if not base_url:
         raise EnvironmentError("API_BASE_URL must be set.")

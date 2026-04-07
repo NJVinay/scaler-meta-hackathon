@@ -6,6 +6,7 @@ endpoints: /ws, /reset, /step, /state, /health, /docs.
 
 Additional security middleware is layered on top.
 """
+
 import sys
 import os
 from dotenv import load_dotenv
@@ -41,22 +42,27 @@ except ImportError:
     # Security modules optional during development
     pass
 
+
 # ── Root route (For HF Spaces UI) ──
 @app.get("/")
 async def root():
     return {
         "message": "Contract Clause Analyzer is running!",
-        "endpoints": ["/reset", "/step", "/state", "/health", "/docs"]
+        "endpoints": ["/reset", "/step", "/state", "/health", "/docs"],
     }
+
 
 # ── Health check (in case create_fastapi_app doesn't include one) ──
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "environment": "contract-clause-analyzer"}
 
+
 def main():
     import uvicorn
+
     uvicorn.run("server.app:app", host="0.0.0.0", port=7860, reload=False)
+
 
 if __name__ == "__main__":
     main()

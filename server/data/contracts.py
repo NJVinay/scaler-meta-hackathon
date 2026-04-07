@@ -51,7 +51,6 @@ CLAUSES = [
         "improved_version": "",
         "key_terms": ["indemnify", "hold harmless", "claims", "damages", "breach"],
     },
-
     # ── 1: Limitation of Liability (Easy — classic pattern) ──
     {
         "id": "clause_002",
@@ -70,7 +69,6 @@ CLAUSES = [
         "improved_version": "",
         "key_terms": ["liability", "indirect", "consequential", "twelve months"],
     },
-
     # ── 2: Termination (Medium — missing notice period) ──────
     {
         "id": "clause_003",
@@ -97,7 +95,6 @@ CLAUSES = [
         ),
         "key_terms": ["terminate", "written notice", "obligations", "survive"],
     },
-
     # ── 3: Confidentiality (Easy — standard NDA clause) ──────
     {
         "id": "clause_004",
@@ -117,7 +114,6 @@ CLAUSES = [
         "improved_version": "",
         "key_terms": ["confidential", "disclosure", "receiving party"],
     },
-
     # ── 4: Force Majeure (Medium — too broad) ────────────────
     {
         "id": "clause_005",
@@ -152,7 +148,6 @@ CLAUSES = [
         ),
         "key_terms": ["force majeure", "reasonable control", "liable", "performance"],
     },
-
     # ── 5: IP Assignment (Medium — ambiguous scope) ──────────
     {
         "id": "clause_006",
@@ -183,7 +178,6 @@ CLAUSES = [
         ),
         "key_terms": ["intellectual property", "assigns", "work product", "rights"],
     },
-
     # ── 6: Non-Compete (High — unreasonably broad) ──────────
     {
         "id": "clause_007",
@@ -213,7 +207,6 @@ CLAUSES = [
         ),
         "key_terms": ["non-compete", "termination", "competitive", "contractor"],
     },
-
     # ── 7: Warranty (Easy — standard) ────────────────────────
     {
         "id": "clause_008",
@@ -232,7 +225,6 @@ CLAUSES = [
         "improved_version": "",
         "key_terms": ["warranty", "workmanlike", "re-perform", "industry standards"],
     },
-
     # ── 8: Payment Terms (High — unfavorable to contractor) ──
     {
         "id": "clause_009",
@@ -262,7 +254,6 @@ CLAUSES = [
         ),
         "key_terms": ["payment", "invoice", "deliverable", "interest"],
     },
-
     # ── 9: Dispute Resolution (Medium — no escalation) ──────
     {
         "id": "clause_010",
@@ -298,6 +289,7 @@ CLAUSES = [
 # ──────────────────────────────────────────────────────────────
 # Helper accessors
 # ──────────────────────────────────────────────────────────────
+
 
 def get_clause(clause_id: str) -> dict:
     """Retrieve a single clause by ID."""

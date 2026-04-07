@@ -11,6 +11,7 @@ This is a multi-step task requiring deep legal reasoning.
 Difficulty: Hard
 Max steps:  3 (identify → rewrite → justify)
 """
+
 import random
 from server.data.contracts import CLAUSES
 

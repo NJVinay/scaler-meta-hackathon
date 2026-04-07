@@ -8,6 +8,7 @@ Implements the 3 required methods:
 
 Routes actions to the appropriate task handler (easy/medium/hard).
 """
+
 import uuid
 import random
 from typing import Optional
@@ -54,9 +55,13 @@ class ContractEnvironment(Environment):
         """
         # Select task
         if task_name is None:
-            task_name = random.choice([
-                "clause-classify", "risk-assess", "clause-rewrite",
-            ])
+            task_name = random.choice(
+                [
+                    "clause-classify",
+                    "risk-assess",
+                    "clause-rewrite",
+                ]
+            )
         self._task_name = task_name
 
         # Reset internal state
@@ -201,7 +206,9 @@ class ContractEnvironment(Environment):
             self._state.current_clause_index = clause_idx + 1
 
             # Check if episode is done
-            is_last = self._current_step >= self._max_steps or clause_idx + 1 >= len(clauses)
+            is_last = self._current_step >= self._max_steps or clause_idx + 1 >= len(
+                clauses
+            )
             self._done = is_last
             self._state.is_done = is_last
 
@@ -215,7 +222,9 @@ class ContractEnvironment(Environment):
             if is_last:
                 # Final episode grade
                 final_score, final_feedback = risk_grader.grade_episode(
-                    self._step_outputs, expected_list, self._action_history,
+                    self._step_outputs,
+                    expected_list,
+                    self._action_history,
                 )
                 return ContractObservation(
                     done=True,

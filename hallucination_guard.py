@@ -4,7 +4,7 @@ hallucination_guard.py — Output validation for Gemini 3 Pro responses.
 Gemini 3 Pro has an ~88% hallucination rate on misses.
 Always validate structured output against expected schemas.
 """
-import json
+
 from pydantic import BaseModel
 from typing import Optional
 
@@ -78,8 +78,9 @@ def extract_text_answer(raw: str) -> str:
         text = "\n".join(lines[1:-1]).strip()
 
     # Strip surrounding quotes
-    if (text.startswith('"') and text.endswith('"')) or \
-       (text.startswith("'") and text.endswith("'")):
+    if (text.startswith('"') and text.endswith('"')) or (
+        text.startswith("'") and text.endswith("'")
+    ):
         text = text[1:-1].strip()
 
     # Strip backticks

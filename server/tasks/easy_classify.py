@@ -7,6 +7,7 @@ predefined clause types. This is a single-step task.
 Difficulty: Easy
 Max steps:  1
 """
+
 import random
 from server.data.contracts import CLAUSES, CLAUSE_TYPES
 

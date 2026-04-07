@@ -6,7 +6,8 @@ Inherits from openenv.core.env_server base classes:
   - Observation: has `done: bool` and `reward: Optional[float]`
   - State:       has `episode_id: Optional[str]` and `step_count: int`
 """
-from typing import List, Optional, Any
+
+from typing import List, Any
 from openenv.core.env_server import Action, Observation, State
 
 
@@ -15,9 +16,10 @@ from openenv.core.env_server import Action, Observation, State
 # ──────────────────────────────────────────────────────────────
 class ContractAction(Action):
     """Agent submits an action against the current contract clause(s)."""
-    action_type: str       # "classify" | "assess_risk" | "rewrite"
-    payload: str           # The agent's answer / rewrite text
-    reasoning: str = ""    # Optional chain-of-thought justification
+
+    action_type: str  # "classify" | "assess_risk" | "rewrite"
+    payload: str  # The agent's answer / rewrite text
+    reasoning: str = ""  # Optional chain-of-thought justification
 
 
 # ──────────────────────────────────────────────────────────────
@@ -25,11 +27,12 @@ class ContractAction(Action):
 # ──────────────────────────────────────────────────────────────
 class ContractObservation(Observation):
     """What the agent sees each step. `done` and `reward` inherited."""
+
     task_name: str = ""
-    clause_text: str = ""                   # The clause(s) to analyse
-    instructions: str = ""                  # What the agent should do
-    available_actions: List[str] = []       # Valid action_type values
-    feedback: str = ""                      # Grader feedback after a step
+    clause_text: str = ""  # The clause(s) to analyse
+    instructions: str = ""  # What the agent should do
+    available_actions: List[str] = []  # Valid action_type values
+    feedback: str = ""  # Grader feedback after a step
     step_number: int = 0
     max_steps: int = 1
     metadata: dict[str, Any] = {}
@@ -40,6 +43,7 @@ class ContractObservation(Observation):
 # ──────────────────────────────────────────────────────────────
 class ContractState(State):
     """Server-side state. `episode_id` and `step_count` inherited."""
+
     task_name: str = ""
     current_clause_index: int = 0
     total_clauses: int = 0

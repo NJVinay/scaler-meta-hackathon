@@ -4,6 +4,7 @@ security/sanitise.py — Input sanitisation and prompt injection guard.
 Must be applied to ALL user-supplied text before LLM calls.
 Rejects known injection patterns and enforces input length caps.
 """
+
 from fastapi import HTTPException
 
 INJECTION_PATTERNS = [

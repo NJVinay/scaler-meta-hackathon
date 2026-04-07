@@ -13,6 +13,7 @@ Required environment variables:
     MODEL_NAME    — Model identifier
     HF_TOKEN      — API key (or API_KEY)
 """
+
 import os
 import sys
 import time
@@ -89,7 +90,7 @@ def run_task(env: ContractEnvironment, client, model_name: str, task_name: str) 
                     break
                 except Exception as e:
                     if attempt < MAX_RETRIES:
-                        time.sleep(2 ** attempt)  # Exponential backoff
+                        time.sleep(2**attempt)  # Exponential backoff
                         continue
                     error_msg = str(e)[:200]
                     raw_response = ""
@@ -133,7 +134,7 @@ def run_task(env: ContractEnvironment, client, model_name: str, task_name: str) 
         score = rewards[-1] if rewards else 0.0
         success = score > 0.0
 
-    except Exception as e:
+    except Exception:
         error_trace = traceback.format_exc()
         print(f"# ERROR in task {task_name}: {error_trace}", file=sys.stderr)
         # Ensure we still have valid data for END line

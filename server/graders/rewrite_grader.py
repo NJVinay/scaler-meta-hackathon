@@ -16,6 +16,7 @@ Step 3 — Justification Quality (0.25 weight):
 
 Returns float in [0.0, 1.0]. Deterministic.
 """
+
 from difflib import SequenceMatcher
 
 
@@ -55,9 +56,7 @@ def grade_step1_issues(
             matched += 1
 
     score = matched / len(expected_issues)
-    feedback = (
-        f"Identified {matched}/{len(expected_issues)} issues correctly."
-    )
+    feedback = f"Identified {matched}/{len(expected_issues)} issues correctly."
     return round(score, 4), feedback
 
 
@@ -102,7 +101,11 @@ def grade_step2_rewrite(
                 # The rewrite should be longer or contain new concepts
                 if len(agent_rewrite) > len(original_text) * 0.8:
                     improvements_detected += 1
-            elif "overbroad" in issue_lower or "unreason" in issue_lower or "too broad" in issue_lower:
+            elif (
+                "overbroad" in issue_lower
+                or "unreason" in issue_lower
+                or "too broad" in issue_lower
+            ):
                 # The rewrite should narrow scope
                 if len(agent_rewrite) != len(original_text):
                     improvements_detected += 1
@@ -158,10 +161,10 @@ def grade_step3_justification(
     # If not using the structured format, check for bullet points or numbered items
     if changes == 0:
         changes = sum(
-            1 for line in lines
-            if line.strip() and (
-                line.strip()[0].isdigit() or line.strip().startswith("-")
-            )
+            1
+            for line in lines
+            if line.strip()
+            and (line.strip()[0].isdigit() or line.strip().startswith("-"))
         )
         reasons = changes  # Assume inline justification
 
@@ -180,8 +183,10 @@ def grade_step3_justification(
             # Check if key words from the issue appear in justification
             issue_words = set(issue.lower().split())
             significant_words = {
-                w for w in issue_words
-                if len(w) > 3 and w not in {"the", "and", "for", "that", "with", "this", "from"}
+                w
+                for w in issue_words
+                if len(w) > 3
+                and w not in {"the", "and", "for", "that", "with", "this", "from"}
             }
             overlap = sum(1 for w in significant_words if w in agent_lower)
             if overlap >= len(significant_words) * 0.3:
@@ -223,8 +228,11 @@ def grade_episode(
     # Step 2: Rewrite (weight 0.50)
     if len(step_outputs) >= 2:
         s, f = grade_step2_rewrite(
-            step_outputs[1], expected_rewrite, expected_issues,
-            key_terms, original_text,
+            step_outputs[1],
+            expected_rewrite,
+            expected_issues,
+            key_terms,
+            original_text,
         )
         scores.append(("rewrite", s, 0.50))
         feedback_parts.append(f"Rewrite: {f}")

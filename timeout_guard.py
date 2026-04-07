@@ -4,6 +4,7 @@ timeout_guard.py — Runtime constraint enforcement.
 Ensures inference.py stays under the 20-minute limit (vCPU=2, 8GB RAM).
 Wraps coroutines with a hard timeout at 19 minutes.
 """
+
 import asyncio
 import signal
 import sys
@@ -13,6 +14,7 @@ MAX_RUNTIME_SECONDS = 1140  # 19 minutes (< 20 min limit, with buffer)
 
 class InferenceTimeoutError(Exception):
     """Raised when inference exceeds the runtime limit."""
+
     pass
 
 

@@ -4,6 +4,7 @@ client.py — EnvClient for remote consumers of the Contract Clause Analyzer.
 Translates between typed models and the WebSocket wire format.
 Users import this to interact with a deployed instance.
 """
+
 from openenv.core.env_client import EnvClient
 from openenv.core.client_types import StepResult
 from models import ContractAction, ContractObservation, ContractState

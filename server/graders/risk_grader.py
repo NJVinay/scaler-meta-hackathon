@@ -10,6 +10,7 @@ Anti-skip penalty:  -0.10 if agent submits for fewer clauses than expected
 
 Returns float in [0.0, 1.0]. Deterministic.
 """
+
 from difflib import SequenceMatcher
 
 
@@ -70,8 +71,10 @@ def grade_single_clause(
     if risk_level == expected_risk:
         risk_score = 1.0
     elif (risk_level, expected_risk) in [
-        ("low", "medium"), ("medium", "low"),
-        ("medium", "high"), ("high", "medium"),
+        ("low", "medium"),
+        ("medium", "low"),
+        ("medium", "high"),
+        ("high", "medium"),
     ]:
         risk_score = 0.4  # One level off
 

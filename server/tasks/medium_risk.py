@@ -11,6 +11,7 @@ This is a multi-step task where the agent assesses clauses one at a time.
 Difficulty: Medium
 Max steps:  4
 """
+
 import random
 from server.data.contracts import CLAUSES
 
@@ -60,11 +61,13 @@ def generate_episode(seed: int | None = None) -> dict:
     for cid in pool_ids:
         clause = next(c for c in CLAUSES if c["id"] == cid)
         clauses.append(clause)
-        expected.append({
-            "clause_id": cid,
-            "risk_level": clause["risk_level"],
-            "issues": clause["issues"],
-        })
+        expected.append(
+            {
+                "clause_id": cid,
+                "risk_level": clause["risk_level"],
+                "issues": clause["issues"],
+            }
+        )
 
     instructions = (
         "You will review contract clauses one at a time. For each clause:\n"
