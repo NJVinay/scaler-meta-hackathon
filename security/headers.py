@@ -18,7 +18,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "default-src 'self'; script-src 'none'; object-src 'none'"
             ),
             "X-Content-Type-Options": "nosniff",
-            "X-Frame-Options": "DENY",
             "X-XSS-Protection": "1; mode=block",
             "Referrer-Policy": "no-referrer",
             "Permissions-Policy": "geolocation=(), microphone=(), camera=()",

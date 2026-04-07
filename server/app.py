@@ -41,6 +41,14 @@ except ImportError:
     # Security modules optional during development
     pass
 
+# ── Root route (For HF Spaces UI) ──
+@app.get("/")
+async def root():
+    return {
+        "message": "Contract Clause Analyzer is running!",
+        "endpoints": ["/reset", "/step", "/state", "/health", "/docs"]
+    }
+
 # ── Health check (in case create_fastapi_app doesn't include one) ──
 @app.get("/health")
 async def health_check():
