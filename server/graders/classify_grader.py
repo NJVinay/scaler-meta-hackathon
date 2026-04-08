@@ -10,6 +10,7 @@ Returns float in [0.0, 1.0]. Deterministic.
 """
 
 from server.data.contracts import CLAUSE_TYPES
+from server.graders import clip_score
 
 # Related clause type pairs that get partial credit (0.3)
 RELATED_TYPES = {
@@ -43,23 +44,23 @@ def grade(agent_output: str, expected: str) -> tuple[float, str]:
     answer = answer.strip("\"'`")
 
     if answer == expected:
-        return 1.0, f"Correct! The clause type is '{expected}'."
+        return clip_score(1.0), f"Correct! The clause type is '{expected}'."
 
     # Check for partial credit
     related = RELATED_TYPES.get(expected, [])
     if answer in related:
-        return 0.3, (
+        return clip_score(0.3), (
             f"Close — you said '{answer}', but the correct type is '{expected}'. "
             f"These are related categories."
         )
 
     # Check if answer is at least a valid clause type
     if answer in CLAUSE_TYPES:
-        return 0.0, (
+        return clip_score(0.0), (
             f"Incorrect. You said '{answer}', but the correct type is '{expected}'."
         )
 
-    return 0.0, (
+    return clip_score(0.0), (
         f"Invalid answer '{answer}'. Expected one of: {', '.join(CLAUSE_TYPES)}. "
         f"The correct type is '{expected}'."
     )

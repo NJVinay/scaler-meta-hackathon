@@ -12,6 +12,7 @@ Returns float in [0.0, 1.0]. Deterministic.
 """
 
 from difflib import SequenceMatcher
+from server.graders import clip_score
 
 
 def _parse_risk_response(text: str) -> tuple[str, list[str]]:
@@ -143,7 +144,7 @@ def grade_episode(
         (score, feedback) where score is in [0.0, 1.0].
     """
     if not step_outputs:
-        return 0.0, "No steps completed."
+        return clip_score(0.0), "No steps completed."
 
     clause_scores = []
     feedback_parts = []
@@ -176,5 +177,5 @@ def grade_episode(
         skipped = len(expected_clauses) - len(step_outputs)
         avg_score -= 0.10 * skipped
 
-    final = max(0.0, min(1.0, avg_score))
+    final = clip_score(max(0.0, min(1.0, avg_score)))
     return round(final, 4), " | ".join(feedback_parts)

@@ -16,7 +16,7 @@ from typing import Optional
 from openenv.core.env_server import Environment
 from models import ContractAction, ContractObservation, ContractState
 from server.tasks import easy_classify, medium_risk, hard_rewrite
-from server.graders import classify_grader, risk_grader, rewrite_grader
+from server.graders import clip_score, classify_grader, risk_grader, rewrite_grader
 
 
 class ContractEnvironment(Environment):
@@ -142,7 +142,7 @@ class ContractEnvironment(Environment):
         if self._done:
             return ContractObservation(
                 done=True,
-                reward=0.0,
+                reward=clip_score(0.0),
                 task_name=self._task_name,
                 clause_text="",
                 instructions="Episode is already complete.",
@@ -198,7 +198,7 @@ class ContractEnvironment(Environment):
                     expected_list[clause_idx]["issues"],
                 )
             else:
-                step_score = 0.0
+                step_score = clip_score(0.0)
                 step_feedback = "Extra step — no clause to assess."
 
             self._rewards.append(step_score)
@@ -277,7 +277,7 @@ class ContractEnvironment(Environment):
                     self._episode_data["expected_issues"],
                 )
             else:
-                step_score = 0.0
+                step_score = clip_score(0.0)
                 step_feedback = "Extra step — task complete."
 
             self._rewards.append(step_score)
@@ -314,7 +314,7 @@ class ContractEnvironment(Environment):
                 if self._current_step < len(step_instructions_list)
                 else "Continue with the task."
             )
-            self._state.cumulative_reward = sum(self._rewards) / len(self._rewards)
+            self._state.cumulative_reward = clip_score(sum(self._rewards) / len(self._rewards))
 
             return ContractObservation(
                 done=False,

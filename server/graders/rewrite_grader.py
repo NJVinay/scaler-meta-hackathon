@@ -18,6 +18,7 @@ Returns float in [0.0, 1.0]. Deterministic.
 """
 
 from difflib import SequenceMatcher
+from server.graders import clip_score
 
 
 def _similarity(a: str, b: str) -> float:
@@ -250,5 +251,5 @@ def grade_episode(
         feedback_parts.append("Justify: not attempted.")
 
     total = sum(s * w for _, s, w in scores)
-    final = max(0.0, min(1.0, total))
+    final = clip_score(max(0.0, min(1.0, total)))
     return round(final, 4), " | ".join(feedback_parts)
