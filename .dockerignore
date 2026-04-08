@@ -1,0 +1,10 @@
+.git
+.venv
+.env
+__pycache__
+.ruff_cache
+*.pyc
+*.pyo
+*.pyd
+.db
+.ipynb_checkpoints
