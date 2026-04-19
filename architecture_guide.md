@@ -9,7 +9,7 @@ This document serves as a complete technical deep dive into the underlying archi
 The project strictly follows the **OpenEnv** framework, separating the "World" (the legal sandbox) from the "Agent" (the LLM answering the questions). It is designed as a **stateless, API-first microservice** using FastAPI.
 
 ### Component Breakdown
-*   **The Brain (Client Layer)**: `inference.py` and `gemini_client.py`. This is the AI agent trying to solve the problem. It handles external API requests, prompt generation, and retry logic.
+*   **The Brain (Client Layer)**: `inference.py` and `gemma_client.py`. This is the AI agent trying to solve the problem. It handles external API requests, prompt generation, and retry logic.
 *   **The World (Environment Layer)**: `server/environment.py` and `server/app.py`. This is the simulated universe. It holds the rules, accepts actions, and returns results.
 *   **The Judges (Grading Layer)**: `server/tasks/` and `server/graders/`. These are the deterministic math engines calculating scores.
 *   **The Vault (Data Layer)**: `server/data/contracts.py`. An in-memory, zero-dependency datastore containing the ground-truth legal clauses.
@@ -51,7 +51,7 @@ sequenceDiagram
 **Step 1: Initialization (`reset`)**
 The LLM script (`inference.py`) triggers `env.reset()`. The environment reaches into `contracts.py`, selects a random clause corresponding to the task's difficulty, and sends the raw, flawed text back to the agent as a Pydantic `ContractObservation`.
 
-**Step 2: Generation (`call_gemini`)**
+**Step 2: Generation (`call_gemma`)**
 The agent formats the text into a prompt and sends it to the Hugging Face Inference API. The LLM returns a text response criticizing or rewriting the clause.
 
 **Step 3: Action Submission (`step`)**

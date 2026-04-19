@@ -1,7 +1,7 @@
 """
-hallucination_guard.py — Output validation for Gemini 3 Pro responses.
+hallucination_guard.py — Output validation for Gemma 4 responses.
 
-Gemini 3 Pro has an ~88% hallucination rate on misses.
+Gemma 4 sometimes has issues with extra conversational text.
 Always validate structured output against expected schemas.
 """
 
@@ -13,7 +13,7 @@ def validate_structured_output(
     raw: str,
     schema: type[BaseModel],
 ) -> tuple[bool, Optional[BaseModel], str]:
-    """Validate Gemini output against a Pydantic schema.
+    """Validate Gemma 4 output against a Pydantic schema.
 
     Attempts multiple parsing strategies:
       1. Direct JSON parse
@@ -65,7 +65,7 @@ def validate_structured_output(
 
 
 def extract_text_answer(raw: str) -> str:
-    """Extract a clean text answer from Gemini output.
+    """Extract a clean text answer from Gemma 4 output.
 
     Strips markdown, code fences, and leading/trailing noise.
     Useful for non-JSON responses like classification labels.

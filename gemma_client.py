@@ -1,5 +1,5 @@
 """
-gemini_client.py — Gemini 3 Pro (Antigravity) client via OpenAI-compatible SDK.
+gemma_client.py — Gemma 4 client via OpenAI-compatible SDK.
 
 Uses environment variables only — never hardcoded credentials.
 Supports thinking_config with configurable thinking_level.
@@ -10,7 +10,7 @@ from openai import OpenAI
 
 
 def build_client() -> OpenAI:
-    """Build an OpenAI-compatible client for Gemini 3 Pro.
+    """Build an OpenAI-compatible client for Gemma 4.
 
     Reads credentials from environment variables:
       - HF_TOKEN or API_KEY → api_key
@@ -32,7 +32,7 @@ def build_client() -> OpenAI:
     return OpenAI(base_url=base_url, api_key=api_key)
 
 
-def call_gemini(
+def call_gemma(
     client: OpenAI,
     prompt: str,
     system: str = "",
@@ -40,7 +40,7 @@ def call_gemini(
     max_tokens: int = 2048,
     temperature: float = 0.7,
 ) -> str:
-    """Call Gemini 3 Pro with thinking_config support.
+    """Call Gemma 4 with thinking_config support.
 
     Args:
         client:          OpenAI client instance.
@@ -53,7 +53,7 @@ def call_gemini(
     Returns:
         The model's response text, stripped.
     """
-    model = os.getenv("MODEL_NAME", "gemini-3-pro")
+    model = os.getenv("MODEL_NAME", "google/gemma-4-31B-it")
 
     messages = []
     if system:

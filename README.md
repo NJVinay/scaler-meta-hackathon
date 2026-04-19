@@ -30,7 +30,7 @@ A real-world **legal contract clause analysis** environment built on the [OpenEn
 │   ├── graders/                ← Deterministic graders per task
 │   └── data/contracts.py       ← Embedded clause dataset
 ├── security/                   ← Rate limiting, CSP, bot detection
-├── inference.py                ← Inference script (Gemini 3 Pro)
+├── inference.py                ← Inference script (Gemma 4)
 ├── openenv.yaml                ← OpenEnv manifest
 ├── pyproject.toml              ← Project metadata & entry point
 ├── uv.lock                     ← Locked dependencies

@@ -2,7 +2,7 @@
 inference.py — Root-level inference script for OpenEnv Contract Clause Analyzer.
 
 MANDATORY FILE — must be in project root.
-Runs an LLM agent (Gemini 3 Pro via OpenAI-compatible SDK) against all 3 tasks
+Runs an LLM agent (Gemma 4 via OpenAI-compatible SDK) against all 3 tasks
 and emits structured stdout logs in strict START/STEP/END format.
 
 Usage:
@@ -34,7 +34,7 @@ LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 # Ensure project root is on path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from gemini_client import build_client, call_gemini
+from gemma_client import build_client, call_gemma
 from hallucination_guard import extract_text_answer
 from log_utils import log_start, log_step, log_end
 from timeout_guard import MAX_RUNTIME_SECONDS
@@ -88,7 +88,7 @@ def run_task(env: ContractEnvironment, client, model_name: str, task_name: str) 
             raw_response = ""
             for attempt in range(MAX_RETRIES + 1):
                 try:
-                    raw_response = call_gemini(
+                    raw_response = call_gemma(
                         client=client,
                         prompt=prompt,
                         system=system_prompt,
@@ -191,7 +191,7 @@ def _infer_action_type(task_name: str) -> str:
 # ──────────────────────────────────────────────────────────────
 def main():
     start_time = time.time()
-    model_name = os.getenv("MODEL_NAME", "gemini-3-pro")
+    model_name = os.getenv("MODEL_NAME", "google/gemma-4-31B-it")
 
     # Build LLM client
     try:
