@@ -52,6 +52,17 @@ async def root():
     }
 
 
+# ── Suppress UI 404 noise in HF Logs ──
+@app.get("/web")
+async def web_ui_redirect():
+    return {"message": "API-only environment. Use /docs for documentation."}
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    return None
+
+
 # ── Health check (in case create_fastapi_app doesn't include one) ──
 @app.get("/health")
 async def health_check():
