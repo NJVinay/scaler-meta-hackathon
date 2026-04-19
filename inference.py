@@ -116,9 +116,8 @@ def run_task(env: ContractEnvironment, client, model_name: str, task_name: str) 
 
             # Step the environment
             try:
-                obs = env.step(action)
-                reward = obs.reward if obs.reward is not None else 0.0
-                done = obs.done
+                obs, reward, done = env.step(action)
+                reward = reward if reward is not None else 0.0
                 rewards.append(reward)
             except Exception as e:
                 error_msg = str(e)[:200]

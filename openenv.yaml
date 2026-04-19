@@ -1,7 +1,12 @@
+spec_version: 1
 name: contract-clause-analyzer
 version: "1.0.0"
 description: "Real-world legal contract clause analysis environment for AI agent evaluation. Agents classify clauses, assess risk, and rewrite problematic language."
 author: "vinay"
+default_image: python:3.11-slim
+client: client:ContractEnv
+action: models:ContractAction
+observation: models:ContractObservation
 tags:
   - openenv
   - real-world

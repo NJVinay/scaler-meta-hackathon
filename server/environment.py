@@ -137,10 +137,10 @@ class ContractEnvironment(Environment):
         action: ContractAction,
         timeout_s: Optional[float] = None,
         **kwargs,
-    ) -> ContractObservation:
+    ) -> tuple[ContractObservation, float, bool]:
         """Process one agent action and return observation + reward."""
         if self._done:
-            return ContractObservation(
+            obs = ContractObservation(
                 done=True,
                 reward=clip_score(0.0),
                 task_name=self._task_name,
@@ -151,6 +151,7 @@ class ContractEnvironment(Environment):
                 step_number=self._current_step,
                 max_steps=self._max_steps,
             )
+            return obs, obs.reward, obs.done
 
         self._current_step += 1
         self._state.step_count = self._current_step
@@ -170,7 +171,7 @@ class ContractEnvironment(Environment):
             self._state.cumulative_reward = score
             self._state.is_done = True
 
-            return ContractObservation(
+            obs = ContractObservation(
                 done=True,
                 reward=score,
                 task_name=self._task_name,
@@ -181,6 +182,7 @@ class ContractEnvironment(Environment):
                 step_number=self._current_step,
                 max_steps=self._max_steps,
             )
+            return obs, obs.reward, obs.done
 
         # ── Task 2: Risk Assessment ──
         elif self._task_name == "risk-assess":
@@ -226,7 +228,7 @@ class ContractEnvironment(Environment):
                     expected_list,
                     self._action_history,
                 )
-                return ContractObservation(
+                obs = ContractObservation(
                     done=True,
                     reward=final_score,
                     task_name=self._task_name,
@@ -237,8 +239,9 @@ class ContractEnvironment(Environment):
                     step_number=self._current_step,
                     max_steps=self._max_steps,
                 )
+                return obs, obs.reward, obs.done
 
-            return ContractObservation(
+            obs = ContractObservation(
                 done=False,
                 reward=step_score,
                 task_name=self._task_name,
@@ -249,6 +252,7 @@ class ContractEnvironment(Environment):
                 step_number=self._current_step,
                 max_steps=self._max_steps,
             )
+            return obs, obs.reward, obs.done
 
         # ── Task 3: Clause Rewrite ──
         elif self._task_name == "clause-rewrite":
@@ -296,7 +300,7 @@ class ContractEnvironment(Environment):
                 self._state.cumulative_reward = final_score
                 self._state.is_done = True
 
-                return ContractObservation(
+                obs = ContractObservation(
                     done=True,
                     reward=final_score,
                     task_name=self._task_name,
@@ -307,6 +311,7 @@ class ContractEnvironment(Environment):
                     step_number=self._current_step,
                     max_steps=self._max_steps,
                 )
+                return obs, obs.reward, obs.done
 
             # Continue to next step
             next_instructions = (
@@ -316,7 +321,7 @@ class ContractEnvironment(Environment):
             )
             self._state.cumulative_reward = clip_score(sum(self._rewards) / len(self._rewards))
 
-            return ContractObservation(
+            obs = ContractObservation(
                 done=False,
                 reward=step_score,
                 task_name=self._task_name,
@@ -327,6 +332,7 @@ class ContractEnvironment(Environment):
                 step_number=self._current_step,
                 max_steps=self._max_steps,
             )
+            return obs, obs.reward, obs.done
 
         else:
             raise ValueError(f"Unknown task: {self._task_name}")
