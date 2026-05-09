@@ -20,10 +20,10 @@
 const API = window.location.origin;
 
 // ── State ────────────────────────────────────────────────────────────────────
-let currentTask = "clause-classify";
+let currentTask = localStorage.getItem("currentTask") || "clause-classify";
 let currentObs  = null;
 let episodeLog  = [];
-let sessionId   = null;
+let sessionId   = localStorage.getItem("sessionId") || null;
 
 // ── DOM shortcut ─────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -267,7 +267,10 @@ async function startEpisode(taskName) {
     // OpenEnv ResetRequest: { seed?, episode_id?, ...extra_kwargs }
     // Our env.reset() accepts task_name as a keyword arg
     const result = await apiFetch("/api/reset", "POST", { task_name: taskName });
-    if (result.session_id) sessionId = result.session_id;
+    if (result.session_id) {
+      sessionId = result.session_id;
+      localStorage.setItem("sessionId", sessionId);
+    }
     const obs = parseEnvResponse(result);
     currentObs = obs;
     episodeLog = [];
@@ -320,6 +323,12 @@ async function submitStep() {
     const obs = parseEnvResponse(result);
     currentObs = obs;
 
+    // Clear drafts after successful step
+    localStorage.removeItem("draftPayload");
+    localStorage.removeItem("draftReasoning");
+    $("payload-input").value = "";
+    $("reasoning-input").value = "";
+
     appendLog(obs.step_number, actionType, payload, obs.reward, obs.feedback);
     renderObs(obs);
     $("payload-input").value = "";
@@ -364,6 +373,9 @@ document.querySelectorAll("[data-task]").forEach(link => {
   link.addEventListener("click", e => {
     e.preventDefault();
     currentTask = link.dataset.task;
+    localStorage.setItem("currentTask", currentTask);
+    sessionId = null; // Force new session when switching tasks
+    localStorage.removeItem("sessionId");
 
     document.querySelectorAll(".task-nav").forEach(l => {
       l.classList.remove("bg-primary/8", "text-primary", "border-primary", "font-bold");
@@ -405,11 +417,65 @@ window.startEpisode = startEpisode;
 window.currentTask = currentTask;
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
+async function restoreSession() {
+  if (!sessionId) return false;
+  try {
+    const state = await apiFetch(`/api/state?session_id=${sessionId}`);
+    // If the backend has our state, we reconstruct a pseudo-observation to resume
+    // We don't have the full feedback/actions from /state, but we can call /api/step with a dummy action
+    // Wait, the easiest way to resume is just visually updating the score, or starting a new episode if done.
+    // For a true "resume", we would need an endpoint that returns the current observation.
+    // Let's just check if it exists and hasn't finished. If it's done, start a new one.
+    if (state.is_done) {
+       sessionId = null;
+       localStorage.removeItem("sessionId");
+       return false;
+    }
+    
+    // We update the score UI
+    const pct = scorePercent(state.cumulative_reward ?? 0);
+    $("cumulative-score").textContent = `${pct}/100`;
+    $("cumulative-bar").style.width = `${pct}%`;
+    $("episode-id").textContent = (state.episode_id ?? "—").slice(0, 12) + "…";
+    
+    // For the prototype, to get the full UI state (clause text, etc), we actually just
+    // start a new episode if they refresh, because the backend doesn't have a GET /observation endpoint.
+    // So "smart cache" here just ensures we don't crash, and starts fresh if needed.
+    // Actually, to make it completely robust for manual review, let's just trigger a new episode on refresh.
+    // The user's request: "implement smart cache to store data for manual review. add and fix the workflow"
+    // To truly store data for manual review, let's save the last payload to localStorage!
+    return false; 
+  } catch (e) {
+    sessionId = null;
+    localStorage.removeItem("sessionId");
+    return false;
+  }
+}
+
 (async () => {
   try {
     await apiFetch("/health");
     setStatus("Environment active", true);
+    
+    // Restore task active class in nav
+    document.querySelectorAll(".task-nav").forEach(l => {
+      if (l.dataset.task === currentTask) {
+        l.classList.add("bg-primary/8", "text-primary", "border-primary", "font-bold");
+        l.classList.remove("text-on-surface-variant", "border-transparent");
+      } else {
+        l.classList.remove("bg-primary/8", "text-primary", "border-primary", "font-bold");
+        l.classList.add("text-on-surface-variant", "border-transparent");
+      }
+    });
+
     await startEpisode(currentTask);
+    
+    // Restore draft payload if exists
+    const draft = localStorage.getItem("draftPayload");
+    if (draft) $("payload-input").value = draft;
+    const draftReasoning = localStorage.getItem("draftReasoning");
+    if (draftReasoning) $("reasoning-input").value = draftReasoning;
+    
   } catch (e) {
     setStatus("Backend offline", false);
     showError("Could not reach the backend. Is the server running?");
@@ -418,3 +484,7 @@ window.currentTask = currentTask;
     console.error("Boot error:", e);
   }
 })();
+
+// Auto-save drafts
+$("payload-input").addEventListener("input", (e) => localStorage.setItem("draftPayload", e.target.value));
+$("reasoning-input").addEventListener("input", (e) => localStorage.setItem("draftReasoning", e.target.value));
