@@ -98,6 +98,10 @@ function showSpinner(show) {
 function renderStepProgress(current, max) {
   const container = $("step-progress");
   container.innerHTML = "";
+  
+  // If done, current might equal max. Ensure we don't display "Step 4 / 3"
+  const displayCurrent = Math.min(current + 1, max);
+
   for (let i = 0; i < max; i++) {
     if (i > 0) {
       const line = document.createElement("div");
@@ -109,7 +113,7 @@ function renderStepProgress(current, max) {
     dot.title = `Step ${i + 1}`;
     container.appendChild(dot);
   }
-  $("step-counter").textContent = `Step ${current} / ${max}`;
+  $("step-counter").textContent = `Step ${displayCurrent} of ${max}`;
 }
 
 // ── Parse OpenEnv response ───────────────────────────────────────────────────
@@ -412,6 +416,11 @@ $("autofill-btn").addEventListener("click", () => {
   }
   const hint = currentObs.metadata.hint_payload;
   
+  // Add animation to show we are clicking
+  const btn = $("autofill-btn");
+  btn.style.transform = "scale(0.95)";
+  setTimeout(() => btn.style.transform = "none", 150);
+
   if (currentTask === "clause-rewrite" && currentObs.step_number === 2) {
     $("payload-input").value = "";
     $("reasoning-input").value = hint;
@@ -419,7 +428,12 @@ $("autofill-btn").addEventListener("click", () => {
     $("payload-input").value = hint;
     $("reasoning-input").value = "";
   }
-  showToast("Example answer filled!", "success");
+  showToast("Example answer filled! Submitting to Live Backend...", "success");
+  
+  // Auto-submit after a brief delay so the user sees the field populated
+  setTimeout(() => {
+    $("analyze-btn").click();
+  }, 600);
 });
 
 // ── Keyboard shortcuts ───────────────────────────────────────────────────────

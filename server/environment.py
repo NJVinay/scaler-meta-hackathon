@@ -83,7 +83,7 @@ class ContractEnvironment(Environment):
         elif task_name == "risk-assess":
             config = medium_risk.get_task_config()
             self._episode_data = medium_risk.generate_episode(seed)
-            self._max_steps = config["max_steps"]
+            self._max_steps = len(self._episode_data["clauses"])
             # Show first clause
             clause_text = self._episode_data["clauses"][0]["text"]
             instructions = self._episode_data["instructions"]
