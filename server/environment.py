@@ -117,17 +117,33 @@ class ContractEnvironment(Environment):
             action_history=[],
         )
 
-        return ContractObservation(
+        # Initial hint logic
+        initial_hint = ""
+        if task_name == "clause-classify":
+            initial_hint = self._episode_data["expected"]
+        elif task_name == "risk-assess":
+            nxt = self._episode_data["expected"][0]
+            initial_hint = f"RISK: {nxt['risk_level']}\nISSUES:\n"
+            if nxt["issues"]:
+                initial_hint += "\n".join([f"- {i}" for i in nxt["issues"]])
+            else:
+                initial_hint += "- none"
+        elif task_name == "clause-rewrite":
+            initial_hint = "\n".join([f"- {i}" for i in self._episode_data["expected_issues"]])
+
+        obs = ContractObservation(
             done=False,
             reward=None,
             task_name=self._task_name,
             clause_text=clause_text,
             instructions=instructions,
             available_actions=available_actions,
-            feedback="",
+            feedback="Environment reset. Ready to begin.",
             step_number=0,
             max_steps=self._max_steps,
+            metadata={"hint_payload": initial_hint},
         )
+        return obs
 
     # ──────────────────────────────────────────────────────────
     # step() — process an agent action
@@ -181,6 +197,7 @@ class ContractEnvironment(Environment):
                 feedback=feedback,
                 step_number=self._current_step,
                 max_steps=self._max_steps,
+                metadata={"hint_payload": self._episode_data["expected"]},
             )
             return obs, obs.reward, obs.done
 
@@ -241,6 +258,16 @@ class ContractEnvironment(Environment):
                 )
                 return obs, obs.reward, obs.done
 
+            # Generate hint for next clause
+            next_hint = ""
+            if not is_last and clause_idx + 1 < len(expected_list):
+                nxt = expected_list[clause_idx + 1]
+                next_hint = f"RISK: {nxt['risk_level']}\nISSUES:\n"
+                if nxt["issues"]:
+                    next_hint += "\n".join([f"- {i}" for i in nxt["issues"]])
+                else:
+                    next_hint += "- none"
+
             obs = ContractObservation(
                 done=False,
                 reward=step_score,
@@ -251,6 +278,7 @@ class ContractEnvironment(Environment):
                 feedback=step_feedback,
                 step_number=self._current_step,
                 max_steps=self._max_steps,
+                metadata={"hint_payload": next_hint},
             )
             return obs, obs.reward, obs.done
 
@@ -321,6 +349,15 @@ class ContractEnvironment(Environment):
             )
             self._state.cumulative_reward = clip_score(sum(self._rewards) / len(self._rewards))
 
+            # Generate hint for next step
+            next_hint = ""
+            if self._current_step == 0:
+                next_hint = "\n".join([f"- {i}" for i in self._episode_data["expected_issues"]])
+            elif self._current_step == 1:
+                next_hint = self._episode_data["expected_rewrite"]
+            elif self._current_step == 2:
+                next_hint = "CHANGE: Addressed all broad language.\nREASON: To protect the client from over-exposure and align with standard contract norms."
+
             obs = ContractObservation(
                 done=False,
                 reward=step_score,
@@ -331,6 +368,7 @@ class ContractEnvironment(Environment):
                 feedback=step_feedback,
                 step_number=self._current_step,
                 max_steps=self._max_steps,
+                metadata={"hint_payload": next_hint},
             )
             return obs, obs.reward, obs.done
 

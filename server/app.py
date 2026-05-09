@@ -73,6 +73,7 @@ def _obs_to_dict(obs: ContractObservation) -> dict:
             "feedback": obs.feedback,
             "step_number": obs.step_number,
             "max_steps": obs.max_steps,
+            "metadata": obs.metadata,
         },
         "reward": obs.reward,
         "done": obs.done,

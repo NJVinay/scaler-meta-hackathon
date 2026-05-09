@@ -124,6 +124,7 @@ function parseEnvResponse(result) {
     feedback:          obsData.feedback          ?? "",
     step_number:       obsData.step_number       ?? 0,
     max_steps:         obsData.max_steps         ?? 1,
+    metadata:          obsData.metadata          ?? {},
     reward:            result.reward             ?? null,
     done:              result.done               ?? false,
   };
@@ -402,6 +403,24 @@ $("clear-btn").addEventListener("click",    () => { $("payload-input").value = "
 $("copy-clause-btn").addEventListener("click", copyClause);
 $("menu-btn").addEventListener("click", openSidebar);
 $("sidebar-overlay").addEventListener("click", closeSidebar);
+
+// Auto-fill test cases for recruiters
+$("autofill-btn").addEventListener("click", () => {
+  if (!currentObs || !currentObs.metadata || !currentObs.metadata.hint_payload) {
+    showToast("No auto-fill available for this step.", "error");
+    return;
+  }
+  const hint = currentObs.metadata.hint_payload;
+  
+  if (currentTask === "clause-rewrite" && currentObs.step_number === 2) {
+    $("payload-input").value = "";
+    $("reasoning-input").value = hint;
+  } else {
+    $("payload-input").value = hint;
+    $("reasoning-input").value = "";
+  }
+  showToast("Example answer filled!", "success");
+});
 
 // ── Keyboard shortcuts ───────────────────────────────────────────────────────
 document.addEventListener("keydown", e => {
