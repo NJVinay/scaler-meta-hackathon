@@ -221,7 +221,7 @@ function renderFeedback(feedback, reward, done) {
 // ── Refresh state ────────────────────────────────────────────────────────────
 async function refreshState() {
   try {
-    const state = await apiFetch("/state");
+    const state = await apiFetch("/api/state");
     const pct = scorePercent(state.cumulative_reward ?? 0);
     $("cumulative-score").textContent = `${pct}/100`;
     $("cumulative-bar").style.width = `${pct}%`;
@@ -264,7 +264,7 @@ async function startEpisode(taskName) {
   try {
     // OpenEnv ResetRequest: { seed?, episode_id?, ...extra_kwargs }
     // Our env.reset() accepts task_name as a keyword arg
-    const result = await apiFetch("/reset", "POST", { task_name: taskName });
+    const result = await apiFetch("/api/reset", "POST", { task_name: taskName });
     const obs = parseEnvResponse(result);
     currentObs = obs;
     episodeLog = [];
@@ -305,7 +305,7 @@ async function submitStep() {
   setStatus("Processing step…");
   try {
     // OpenEnv StepRequest: { action: { ...action_fields }, timeout_s?, request_id? }
-    const result = await apiFetch("/step", "POST", {
+    const result = await apiFetch("/api/step", "POST", {
       action: {
         action_type: actionType,
         payload,
