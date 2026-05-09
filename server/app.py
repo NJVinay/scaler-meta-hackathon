@@ -4,13 +4,19 @@ server/app.py — FastAPI application for the Contract Clause Analyzer.
 Uses openenv.core.env_server.create_fastapi_app() to wire up all standard
 endpoints: /ws, /reset, /step, /state, /health, /docs.
 
-Additional security middleware is layered on top.
+The framework's HTTP /reset and /step are STATELESS (new env per request).
+We add custom /api/reset, /api/step, /api/state endpoints that maintain
+a persistent environment instance for the browser UI.
 """
 
 import sys
 import os
+from typing import Optional
+
 from dotenv import load_dotenv
+from fastapi import Body
 from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel
 
 # Load variables from .env file
 load_dotenv()
@@ -22,7 +28,7 @@ from openenv.core.env_server import create_fastapi_app
 from server.environment import ContractEnvironment
 from models import ContractAction, ContractObservation
 
-# ── Create the base OpenEnv app ──
+# ── Create the base OpenEnv app (registers /ws, /reset, /step, etc.) ──
 app = create_fastapi_app(
     env=ContractEnvironment,
     action_cls=ContractAction,
@@ -44,9 +50,81 @@ except ImportError:
     pass
 
 
-# ── Static files (index.html + app.js) ──
+# ══════════════════════════════════════════════════════════════════════════════
+# Stateful API for the browser UI
+#
+# OpenEnv's built-in /reset and /step are stateless (new env per request),
+# which means /step on a fresh env crashes because there's no episode data.
+# These /api/* endpoints maintain a single shared environment instance.
+# ══════════════════════════════════════════════════════════════════════════════
+
+_env: ContractEnvironment = ContractEnvironment()
+
+
+def _obs_to_dict(obs: ContractObservation) -> dict:
+    """Serialize an observation into the wire format the frontend expects."""
+    return {
+        "observation": {
+            "task_name": obs.task_name,
+            "clause_text": obs.clause_text,
+            "instructions": obs.instructions,
+            "available_actions": obs.available_actions,
+            "feedback": obs.feedback,
+            "step_number": obs.step_number,
+            "max_steps": obs.max_steps,
+        },
+        "reward": obs.reward,
+        "done": obs.done,
+    }
+
+
+class UIResetRequest(BaseModel):
+    task_name: Optional[str] = None
+    seed: Optional[int] = None
+    episode_id: Optional[str] = None
+
+
+class UIStepRequest(BaseModel):
+    action: dict
+
+
+@app.post("/api/reset", tags=["UI"])
+async def ui_reset(req: UIResetRequest = Body(default_factory=UIResetRequest)):
+    """Reset the shared environment and return the initial observation."""
+    global _env
+    _env = ContractEnvironment()
+    obs = _env.reset(
+        seed=req.seed,
+        episode_id=req.episode_id,
+        task_name=req.task_name,
+    )
+    return _obs_to_dict(obs)
+
+
+@app.post("/api/step", tags=["UI"])
+async def ui_step(req: UIStepRequest):
+    """Execute a step on the shared environment and return the result."""
+    action = ContractAction(**req.action)
+    obs, reward, done = _env.step(action)
+    # obs already has reward/done set, but use the returned values for clarity
+    obs.reward = reward
+    obs.done = done
+    return _obs_to_dict(obs)
+
+
+@app.get("/api/state", tags=["UI"])
+async def ui_state():
+    """Return the current state of the shared environment."""
+    state = _env.state
+    return state.model_dump()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Static files + utility routes
+# ══════════════════════════════════════════════════════════════════════════════
 
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 @app.get("/")
 async def root():
@@ -54,7 +132,8 @@ async def root():
     if os.path.exists(index_path):
         return FileResponse(index_path, media_type="text/html")
     return {"message": "Contract Clause Analyzer is running!",
-            "endpoints": ["/reset", "/step", "/state", "/health", "/docs"]}
+            "endpoints": ["/api/reset", "/api/step", "/api/state", "/health", "/docs"]}
+
 
 @app.get("/app.js")
 async def serve_js():
