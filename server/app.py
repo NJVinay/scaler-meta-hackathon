@@ -14,9 +14,10 @@ import os
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import Body
+from fastapi import Body, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
+import uuid
 
 # Load variables from .env file
 load_dotenv()
@@ -58,7 +59,7 @@ except ImportError:
 # These /api/* endpoints maintain a single shared environment instance.
 # ══════════════════════════════════════════════════════════════════════════════
 
-_env: ContractEnvironment = ContractEnvironment()
+_sessions: dict[str, ContractEnvironment] = {}
 
 
 def _obs_to_dict(obs: ContractObservation) -> dict:
@@ -82,40 +83,58 @@ class UIResetRequest(BaseModel):
     task_name: Optional[str] = None
     seed: Optional[int] = None
     episode_id: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 class UIStepRequest(BaseModel):
     action: dict
+    session_id: str
 
 
 @app.post("/api/reset", tags=["UI"])
 async def ui_reset(req: UIResetRequest = Body(default_factory=UIResetRequest)):
     """Reset the shared environment and return the initial observation."""
-    global _env
-    _env = ContractEnvironment()
-    obs = _env.reset(
+    session_id = req.session_id or str(uuid.uuid4())
+    env = ContractEnvironment()
+    _sessions[session_id] = env
+    
+    obs = env.reset(
         seed=req.seed,
         episode_id=req.episode_id,
         task_name=req.task_name,
     )
-    return _obs_to_dict(obs)
+    
+    res = _obs_to_dict(obs)
+    res["session_id"] = session_id
+    return res
 
 
 @app.post("/api/step", tags=["UI"])
 async def ui_step(req: UIStepRequest):
     """Execute a step on the shared environment and return the result."""
+    env = _sessions.get(req.session_id)
+    if not env:
+        raise HTTPException(status_code=404, detail="Session not found or expired.")
+        
     action = ContractAction(**req.action)
-    obs, reward, done = _env.step(action)
+    obs, reward, done = env.step(action)
     # obs already has reward/done set, but use the returned values for clarity
     obs.reward = reward
     obs.done = done
-    return _obs_to_dict(obs)
+    
+    res = _obs_to_dict(obs)
+    res["session_id"] = req.session_id
+    return res
 
 
 @app.get("/api/state", tags=["UI"])
-async def ui_state():
+async def ui_state(session_id: str):
     """Return the current state of the shared environment."""
-    state = _env.state
+    env = _sessions.get(session_id)
+    if not env:
+        raise HTTPException(status_code=404, detail="Session not found or expired.")
+        
+    state = env.state
     return state.model_dump()
 
 

@@ -23,6 +23,7 @@ const API = window.location.origin;
 let currentTask = "clause-classify";
 let currentObs  = null;
 let episodeLog  = [];
+let sessionId   = null;
 
 // ── DOM shortcut ─────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -221,7 +222,8 @@ function renderFeedback(feedback, reward, done) {
 // ── Refresh state ────────────────────────────────────────────────────────────
 async function refreshState() {
   try {
-    const state = await apiFetch("/api/state");
+    if (!sessionId) return;
+    const state = await apiFetch(`/api/state?session_id=${sessionId}`);
     const pct = scorePercent(state.cumulative_reward ?? 0);
     $("cumulative-score").textContent = `${pct}/100`;
     $("cumulative-bar").style.width = `${pct}%`;
@@ -265,6 +267,7 @@ async function startEpisode(taskName) {
     // OpenEnv ResetRequest: { seed?, episode_id?, ...extra_kwargs }
     // Our env.reset() accepts task_name as a keyword arg
     const result = await apiFetch("/api/reset", "POST", { task_name: taskName });
+    if (result.session_id) sessionId = result.session_id;
     const obs = parseEnvResponse(result);
     currentObs = obs;
     episodeLog = [];
@@ -310,7 +313,8 @@ async function submitStep() {
         action_type: actionType,
         payload,
         reasoning,
-      }
+      },
+      session_id: sessionId
     });
 
     const obs = parseEnvResponse(result);
