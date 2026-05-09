@@ -10,6 +10,7 @@ Additional security middleware is layered on top.
 import sys
 import os
 from dotenv import load_dotenv
+from fastapi.responses import FileResponse, JSONResponse
 
 # Load variables from .env file
 load_dotenv()
@@ -44,7 +45,6 @@ except ImportError:
 
 
 # ── Static files (index.html + app.js) ──
-from fastapi.responses import FileResponse, JSONResponse
 
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

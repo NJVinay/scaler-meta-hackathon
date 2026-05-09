@@ -17,7 +17,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.update(
             {
                 "Content-Security-Policy": (
-                    "default-src 'self'; script-src 'none'; object-src 'none'"
+                    "default-src 'self'; "
+                    "script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline'; "
+                    "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "
+                    "font-src 'self' https://fonts.gstatic.com; "
+                    "img-src 'self' data: https:; "
+                    "connect-src 'self'; "
+                    "object-src 'none'"
                 ),
                 "X-Content-Type-Options": "nosniff",
                 "X-XSS-Protection": "1; mode=block",
