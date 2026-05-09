@@ -1,24 +1,24 @@
 /**
  * app.js — Contract Clause Analyzer UI ↔ OpenEnv Backend
  *
- * Endpoints used:
- *   POST /reset  { task_name }              → ContractObservation
- *   POST /step   { action_type, payload, reasoning } → [obs, reward, done]
- *   GET  /state                             → ContractState
- *   GET  /health                            → { status }
+ * Endpoints:
+ *   POST /reset  { task_name }                          → ContractObservation
+ *   POST /step   { action_type, payload, reasoning }    → [obs, reward, done]
+ *   GET  /state                                         → ContractState
+ *   GET  /health                                        → { status }
  */
 
-const API = window.location.origin; // same origin — served by FastAPI
+const API = window.location.origin;
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentTask = "clause-classify";
-let currentObs  = null;   // latest ContractObservation
-let episodeLog  = [];     // { step, action, reward, feedback }
+let currentObs  = null;
+let episodeLog  = [];
 
-// ── DOM refs ─────────────────────────────────────────────────────────────────
+// ── DOM shortcut ─────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── API helper ───────────────────────────────────────────────────────────────
 async function apiFetch(path, method = "GET", body = null) {
   const opts = { method, headers: { "Content-Type": "application/json" } };
   if (body) opts.body = JSON.stringify(body);
@@ -27,35 +27,85 @@ async function apiFetch(path, method = "GET", body = null) {
   return res.json();
 }
 
-function riskColor(level) {
-  return { low: "#4ade80", medium: "#fb923c", high: "#f87171" }[level] ?? "#9ca3af";
-}
-
+// ── Color helpers ────────────────────────────────────────────────────────────
 function scoreColor(s) {
-  if (s >= 0.8) return "#4ade80";
-  if (s >= 0.5) return "#fb923c";
-  return "#f87171";
+  if (s >= 0.8) return "#16a34a";
+  if (s >= 0.5) return "#c2652a";
+  return "#c0392b";
+}
+function scoreColorBg(s) {
+  if (s >= 0.8) return "rgba(22,163,74,0.08)";
+  if (s >= 0.5) return "rgba(194,101,42,0.08)";
+  return "rgba(192,57,43,0.08)";
+}
+function scorePercent(s) { return Math.round(s * 100); }
+function scoreGrade(s) {
+  if (s >= 0.9) return "Excellent";
+  if (s >= 0.7) return "Good";
+  if (s >= 0.5) return "Fair";
+  if (s >= 0.3) return "Partial";
+  return "Poor";
 }
 
-function scorePercent(s) { return Math.round(s * 100); }
+// ── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg, type = "info") {
+  const colors = {
+    success: "bg-success-container text-success border-success/20",
+    error:   "bg-error-container text-error border-error/20",
+    info:    "bg-surface-container-high text-on-surface border-outline-variant/30",
+  };
+  const icons = { success: "check_circle", error: "error", info: "info" };
+  const container = $("toast-container");
+  const el = document.createElement("div");
+  el.className = `toast pointer-events-auto flex items-center space-x-3 px-5 py-3.5 rounded-2xl border shadow-warm-md font-label text-sm font-semibold ${colors[type] ?? colors.info}`;
+  el.innerHTML = `
+    <span class="material-symbols-outlined text-lg filled">${icons[type] ?? icons.info}</span>
+    <span>${msg}</span>`;
+  container.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("show"));
+  setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 400);
+  }, 3500);
+}
 
+// ── Status badge ─────────────────────────────────────────────────────────────
 function setStatus(msg, ok = true) {
   const el = $("status-badge");
-  // Target only the text span (second child), preserve the pulse dot (first child)
   const textSpan = el.querySelector("span:last-child");
+  const dot = el.querySelector("span:first-child");
   if (textSpan) textSpan.textContent = msg;
-  el.style.color = ok ? "#c2652a" : "#ef4444";
+  if (dot) {
+    dot.style.background = ok ? "#16a34a" : "#c0392b";
+  }
+  el.style.color = ok ? "#3a302a" : "#c0392b";
 }
 
 function showSpinner(show) {
-  // CSS uses #spinner { display:none } / #spinner.show { display:inline-block }
   $("spinner").classList.toggle("show", show);
   $("analyze-btn").disabled = show;
 }
 
-// ── Render helpers ────────────────────────────────────────────────────────────
+// ── Step progress dots ───────────────────────────────────────────────────────
+function renderStepProgress(current, max) {
+  const container = $("step-progress");
+  container.innerHTML = "";
+  for (let i = 0; i < max; i++) {
+    if (i > 0) {
+      const line = document.createElement("div");
+      line.className = `step-line ${i < current ? "completed" : "upcoming"}`;
+      container.appendChild(line);
+    }
+    const dot = document.createElement("div");
+    dot.className = `step-dot ${i < current ? "completed" : i === current ? "current" : "upcoming"}`;
+    dot.title = `Step ${i + 1}`;
+    container.appendChild(dot);
+  }
+  $("step-counter").textContent = `Step ${current} / ${max}`;
+}
+
+// ── Render observation ───────────────────────────────────────────────────────
 function renderObs(obs) {
-  // Document ref / task label
   const taskLabels = {
     "clause-classify": "Clause Classification",
     "risk-assess":     "Risk Assessment",
@@ -65,87 +115,128 @@ function renderObs(obs) {
   $("section-title").textContent = taskLabels[obs.task_name] ?? obs.task_name;
 
   // Clause text
-  $("clause-text").textContent = obs.clause_text || "—";
+  const clauseEl = $("clause-text");
+  clauseEl.textContent = obs.clause_text || "No clause data available.";
+  clauseEl.style.opacity = obs.clause_text ? "1" : "0.4";
 
   // Instructions
   $("instructions-box").textContent = obs.instructions || "";
 
-  // Available actions → populate action selector
+  // Action selector
   const sel = $("action-select");
   sel.innerHTML = "";
   (obs.available_actions ?? []).forEach(a => {
     const opt = document.createElement("option");
     opt.value = a;
-    opt.textContent = a;
+    opt.textContent = a.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     sel.appendChild(opt);
   });
 
   // Step progress
-  $("step-counter").textContent = `Step ${obs.step_number} / ${obs.max_steps}`;
+  renderStepProgress(obs.step_number, obs.max_steps);
 
-  // Feedback from last step
+  // Feedback
   if (obs.feedback) renderFeedback(obs.feedback, obs.reward ?? null, obs.done);
+  else $("feedback-box").classList.add("hidden");
 
   // Done state
   if (obs.done) {
     $("payload-input").disabled = true;
+    $("reasoning-input").disabled = true;
     $("analyze-btn").disabled = true;
     $("done-banner").classList.remove("hidden");
     refreshState();
   } else {
     $("payload-input").disabled = false;
+    $("reasoning-input").disabled = false;
     $("analyze-btn").disabled = false;
     $("done-banner").classList.add("hidden");
+    $("payload-input").focus();
   }
+
+  // Hide error banner on successful render
+  $("error-banner").classList.add("hidden");
 }
 
+// ── Render feedback ──────────────────────────────────────────────────────────
 function renderFeedback(feedback, reward, done) {
   const box = $("feedback-box");
-  const scoreVal = reward !== null && reward !== undefined ? reward : null;
+  const hasScore = reward !== null && reward !== undefined;
+  const pct = hasScore ? scorePercent(reward) : 0;
+  const color = hasScore ? scoreColor(reward) : "#9ca3af";
+  const bgColor = hasScore ? scoreColorBg(reward) : "transparent";
+  const grade = hasScore ? scoreGrade(reward) : "";
 
   box.innerHTML = `
-    <div class="mb-3 flex items-center justify-between">
-      <span class="font-label text-xs uppercase tracking-widest text-on-surface-variant">Grader Feedback</span>
-      ${scoreVal !== null ? `
-        <span style="color:${scoreColor(scoreVal)}" class="font-headline text-2xl font-semibold">
-          ${scorePercent(scoreVal)}<span class="text-on-surface-variant text-sm font-body font-normal">/100</span>
-        </span>` : ""}
-    </div>
-    <p class="font-body text-sm leading-relaxed text-on-surface">${feedback}</p>
-    ${done ? `<p class="mt-3 font-label text-xs text-primary font-semibold">✓ Episode complete</p>` : ""}
-  `;
+    <div class="bg-surface-container-lowest p-6 md:p-8 rounded-2xl border border-outline-variant/30 shadow-warm-soft">
+      <div class="flex items-start justify-between mb-5">
+        <div class="flex items-center">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3" style="background:${bgColor}">
+            <span class="material-symbols-outlined text-lg filled" style="color:${color}">${done ? "verified" : "rate_review"}</span>
+          </div>
+          <div>
+            <span class="font-label text-[11px] uppercase tracking-[0.1em] text-on-surface-variant font-semibold block">Grader Feedback</span>
+            ${done ? '<span class="font-label text-[10px] text-primary font-semibold mt-0.5 block">Episode Complete</span>' : ""}
+          </div>
+        </div>
+        ${hasScore ? `
+          <div class="text-right">
+            <div class="font-headline text-3xl font-bold leading-none" style="color:${color}">${pct}</div>
+            <div class="font-label text-[10px] text-on-surface-variant mt-1">/100 · ${grade}</div>
+          </div>` : ""}
+      </div>
+      ${hasScore ? `
+        <div class="w-full bg-outline-variant/20 h-1.5 rounded-full mb-5 overflow-hidden">
+          <div class="h-1.5 rounded-full transition-all duration-700" style="width:${pct}%;background:${color}"></div>
+        </div>` : ""}
+      <p class="font-body text-sm leading-[1.8] text-on-surface">${feedback}</p>
+    </div>`;
   box.classList.remove("hidden");
 }
 
+// ── Refresh state ────────────────────────────────────────────────────────────
 async function refreshState() {
   try {
     const state = await apiFetch("/state");
     const pct = scorePercent(state.cumulative_reward ?? 0);
     $("cumulative-score").textContent = `${pct}/100`;
     $("cumulative-bar").style.width = `${pct}%`;
-    $("cumulative-bar").style.background = scoreColor(state.cumulative_reward ?? 0);
     $("episode-id").textContent = (state.episode_id ?? "—").slice(0, 12) + "…";
+    const diffLabel = { "clause-classify":"Easy","risk-assess":"Medium","clause-rewrite":"Hard" };
+    $("task-difficulty").textContent = diffLabel[state.task_name] ?? "";
   } catch (_) { /* non-critical */ }
 }
 
-// ── Episode log ───────────────────────────────────────────────────────────────
+// ── Episode log ──────────────────────────────────────────────────────────────
 function appendLog(step, action, payload, reward, feedback) {
   episodeLog.push({ step, action, payload, reward, feedback });
   const list = $("log-list");
+
+  // Clear placeholder on first entry
+  if (episodeLog.length === 1) list.innerHTML = "";
+
+  const hasScore = reward !== null && reward !== undefined;
+  const pct = hasScore ? scorePercent(reward) : null;
+  const color = hasScore ? scoreColor(reward) : "#9ca3af";
+
   const row = document.createElement("div");
-  row.className = "border-b border-outline-variant/30 py-3 text-sm font-body";
+  row.className = "px-6 py-4 border-b border-outline-variant/15 last:border-b-0 animate-slide-up";
   row.innerHTML = `
-    <div class="flex justify-between mb-1">
-      <span class="font-semibold text-primary">Step ${step} — <em>${action}</em></span>
-      ${reward !== null ? `<span style="color:${scoreColor(reward)}" class="font-semibold">${scorePercent(reward)}/100</span>` : ""}
+    <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold text-on-primary" style="background:${color}">${step}</div>
+        <span class="font-label text-sm font-semibold text-on-surface">${action.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
+      </div>
+      ${hasScore ? `<span class="font-label text-sm font-bold" style="color:${color}">${pct}/100</span>` : ""}
     </div>
-    <p class="text-on-surface-variant text-xs truncate">${payload.slice(0, 120)}${payload.length > 120 ? "…" : ""}</p>
-    <p class="text-on-surface text-xs mt-1">${feedback}</p>
-  `;
+    <p class="font-body text-xs text-on-surface-variant leading-relaxed mb-1.5 line-clamp-2">${payload}</p>
+    <p class="font-body text-xs text-on-surface/70 leading-relaxed">${feedback}</p>`;
   list.prepend(row);
+
+  $("log-count").textContent = `${episodeLog.length} step${episodeLog.length > 1 ? "s" : ""}`;
 }
 
-// ── Core actions ──────────────────────────────────────────────────────────────
+// ── Start episode ────────────────────────────────────────────────────────────
 async function startEpisode(taskName) {
   showSpinner(true);
   setStatus("Starting episode…");
@@ -153,34 +244,48 @@ async function startEpisode(taskName) {
     const obs = await apiFetch("/reset", "POST", { task_name: taskName });
     currentObs = obs;
     episodeLog = [];
-    $("log-list").innerHTML = "";
+    $("log-list").innerHTML = `
+      <div class="px-6 py-8 text-center">
+        <span class="material-symbols-outlined text-on-surface-variant/20 text-4xl mb-2 block">inbox</span>
+        <p class="font-body text-sm text-on-surface-variant/40">No steps recorded yet.</p>
+      </div>`;
+    $("log-count").textContent = "0 steps";
+    $("feedback-box").classList.add("hidden");
     renderObs(obs);
     setStatus("Environment active", true);
+    showToast("Episode started", "success");
+    await refreshState();
   } catch (e) {
-    setStatus(`Reset failed: ${e.message}`, false);
+    setStatus("Reset failed", false);
+    showError(e.message);
+    showToast("Failed to start episode", "error");
   } finally {
     showSpinner(false);
   }
 }
 
+// ── Submit step ──────────────────────────────────────────────────────────────
 async function submitStep() {
   const payload  = $("payload-input").value.trim();
   const reasoning = $("reasoning-input").value.trim();
   const actionType = $("action-select").value;
 
-  if (!payload) { alert("Enter your response before submitting."); return; }
+  if (!payload) {
+    showToast("Please enter a response before submitting.", "error");
+    $("payload-input").focus();
+    return;
+  }
 
   showSpinner(true);
   setStatus("Processing step…");
   try {
-    // OpenEnv returns [obs, reward, done] — Gymnasium-style tuple
     const result = await apiFetch("/step", "POST", {
       action_type: actionType,
       payload,
       reasoning,
     });
 
-    // Handle both tuple array and direct obs object
+    // Handle both Gymnasium tuple [obs, reward, done] and direct object
     const obs    = Array.isArray(result) ? result[0] : result;
     const reward = Array.isArray(result) ? result[1] : obs.reward;
     const done   = Array.isArray(result) ? result[2] : obs.done;
@@ -193,15 +298,47 @@ async function submitStep() {
     renderObs(obs);
     $("payload-input").value = "";
     $("reasoning-input").value = "";
-    setStatus(done ? "Episode complete" : "Environment active", true);
+
+    if (done) {
+      setStatus("Episode complete", true);
+      showToast(`Episode complete — Score: ${scorePercent(reward)}/100`, reward >= 0.5 ? "success" : "info");
+    } else {
+      setStatus("Environment active", true);
+      showToast(`Step ${obs.step_number} graded: ${scorePercent(reward)}/100`, "info");
+    }
   } catch (e) {
-    setStatus(`Step failed: ${e.message}`, false);
+    setStatus("Step failed", false);
+    showToast(`Step failed: ${e.message}`, "error");
   } finally {
     showSpinner(false);
   }
 }
 
-// ── Nav: task switching ───────────────────────────────────────────────────────
+// ── Error display ────────────────────────────────────────────────────────────
+function showError(msg) {
+  $("error-banner").classList.remove("hidden");
+  $("error-msg").textContent = msg;
+}
+
+// ── Mobile sidebar ───────────────────────────────────────────────────────────
+function openSidebar() {
+  $("sidebar").classList.remove("-translate-x-full");
+  $("sidebar-overlay").classList.add("show");
+}
+function closeSidebar() {
+  $("sidebar").classList.add("-translate-x-full");
+  $("sidebar-overlay").classList.remove("show");
+}
+
+// ── Copy clause ──────────────────────────────────────────────────────────────
+function copyClause() {
+  const text = $("clause-text").textContent;
+  if (text && navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast("Clause copied", "success"));
+  }
+}
+
+// ── Task nav switching ───────────────────────────────────────────────────────
 document.querySelectorAll("[data-task]").forEach(link => {
   link.addEventListener("click", e => {
     e.preventDefault();
@@ -209,40 +346,55 @@ document.querySelectorAll("[data-task]").forEach(link => {
     currentTask = task;
 
     // Update active styles
-    document.querySelectorAll("[data-task]").forEach(l => {
-      l.classList.remove("bg-secondary-container/20", "text-primary", "border-l-2", "border-primary", "font-bold", "translate-x-1");
-      l.classList.add("text-on-surface-variant", "opacity-70");
+    document.querySelectorAll(".task-nav").forEach(l => {
+      l.classList.remove("bg-primary/8", "text-primary", "border-primary", "font-bold");
+      l.classList.add("text-on-surface-variant", "border-transparent");
     });
-    link.classList.add("bg-secondary-container/20", "text-primary", "border-l-2", "border-primary", "font-bold", "translate-x-1");
-    link.classList.remove("text-on-surface-variant", "opacity-70");
+    link.classList.add("bg-primary/8", "text-primary", "border-primary", "font-bold");
+    link.classList.remove("text-on-surface-variant", "border-transparent");
 
     startEpisode(task);
+    closeSidebar();
   });
 });
 
-// ── Analyze button ────────────────────────────────────────────────────────────
+// ── Button bindings ──────────────────────────────────────────────────────────
 $("analyze-btn").addEventListener("click", () => {
-  if (!currentObs) { startEpisode(currentTask); }
-  else { submitStep(); }
+  if (!currentObs) startEpisode(currentTask);
+  else submitStep();
 });
 
-// ── Header CTA ───────────────────────────────────────────────────────────────
 $("new-doc-btn").addEventListener("click", () => startEpisode(currentTask));
-
-// ── Restart button (in done-banner) ──────────────────────────────────────────
 $("restart-btn").addEventListener("click", () => startEpisode(currentTask));
+$("retry-btn").addEventListener("click", () => startEpisode(currentTask));
 
-// ── Clear button ─────────────────────────────────────────────────────────────
 $("clear-btn").addEventListener("click", () => {
   $("payload-input").value = "";
   $("reasoning-input").value = "";
+  $("payload-input").focus();
 });
 
-// ── Expose globals needed by any remaining inline handlers ───────────────────
-window.startEpisode = startEpisode;
-window.currentTask  = currentTask;
+$("copy-clause-btn").addEventListener("click", copyClause);
 
-// ── Health check then auto-start ──────────────────────────────────────────────
+// Mobile menu
+$("menu-btn").addEventListener("click", openSidebar);
+$("sidebar-overlay").addEventListener("click", closeSidebar);
+
+// ── Keyboard shortcut: Ctrl+Enter to submit ──────────────────────────────────
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    if (currentObs && !currentObs.done) submitStep();
+  }
+  // Escape closes mobile sidebar
+  if (e.key === "Escape") closeSidebar();
+});
+
+// ── Expose globals ───────────────────────────────────────────────────────────
+window.startEpisode = startEpisode;
+window.currentTask = currentTask;
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
 (async () => {
   try {
     await apiFetch("/health");
@@ -250,6 +402,8 @@ window.currentTask  = currentTask;
     await startEpisode(currentTask);
   } catch {
     setStatus("Backend offline", false);
-    $("clause-text").textContent = "Could not reach backend. Is the server running?";
+    showError("Could not reach the backend. Is the server running?");
+    $("clause-text").textContent = "Could not reach backend.";
+    $("clause-text").style.opacity = "0.4";
   }
 })();
