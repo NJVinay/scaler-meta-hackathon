@@ -1,11 +1,20 @@
 /**
  * app.js — Contract Clause Analyzer UI ↔ OpenEnv Backend
  *
- * Endpoints:
- *   POST /reset  { task_name }                          → ContractObservation
- *   POST /step   { action_type, payload, reasoning }    → [obs, reward, done]
- *   GET  /state                                         → ContractState
- *   GET  /health                                        → { status }
+ * Wire format (from openenv.core.env_server):
+ *
+ *   POST /reset  body: { task_name?, seed?, episode_id? }
+ *   Response:    { observation: { task_name, clause_text, instructions, available_actions,
+ *                                 feedback, step_number, max_steps },
+ *                  reward: float|null, done: bool }
+ *
+ *   POST /step   body: { action: { action_type, payload, reasoning } }
+ *   Response:    { observation: { ... }, reward: float|null, done: bool }
+ *
+ *   GET /state   Response: { episode_id, step_count, task_name, current_clause_index,
+ *                            total_clauses, cumulative_reward, is_done, action_history }
+ *
+ *   GET /health  Response: { status: "healthy" }
  */
 
 const API = window.location.origin;
@@ -75,9 +84,7 @@ function setStatus(msg, ok = true) {
   const textSpan = el.querySelector("span:last-child");
   const dot = el.querySelector("span:first-child");
   if (textSpan) textSpan.textContent = msg;
-  if (dot) {
-    dot.style.background = ok ? "#16a34a" : "#c0392b";
-  }
+  if (dot) dot.style.background = ok ? "#16a34a" : "#c0392b";
   el.style.color = ok ? "#3a302a" : "#c0392b";
 }
 
@@ -104,6 +111,23 @@ function renderStepProgress(current, max) {
   $("step-counter").textContent = `Step ${current} / ${max}`;
 }
 
+// ── Parse OpenEnv response ───────────────────────────────────────────────────
+// Both /reset and /step return: { observation: {...}, reward, done }
+function parseEnvResponse(result) {
+  const obsData = result.observation ?? result;
+  return {
+    task_name:         obsData.task_name        ?? "",
+    clause_text:       obsData.clause_text      ?? "",
+    instructions:      obsData.instructions     ?? "",
+    available_actions: obsData.available_actions ?? [],
+    feedback:          obsData.feedback          ?? "",
+    step_number:       obsData.step_number       ?? 0,
+    max_steps:         obsData.max_steps         ?? 1,
+    reward:            result.reward             ?? null,
+    done:              result.done               ?? false,
+  };
+}
+
 // ── Render observation ───────────────────────────────────────────────────────
 function renderObs(obs) {
   const taskLabels = {
@@ -111,8 +135,8 @@ function renderObs(obs) {
     "risk-assess":     "Risk Assessment",
     "clause-rewrite":  "Clause Rewrite",
   };
-  $("doc-ref").textContent = obs.task_name;
-  $("section-title").textContent = taskLabels[obs.task_name] ?? obs.task_name;
+  $("doc-ref").textContent = obs.task_name || "—";
+  $("section-title").textContent = taskLabels[obs.task_name] ?? obs.task_name ?? "—";
 
   // Clause text
   const clauseEl = $("clause-text");
@@ -136,7 +160,7 @@ function renderObs(obs) {
   renderStepProgress(obs.step_number, obs.max_steps);
 
   // Feedback
-  if (obs.feedback) renderFeedback(obs.feedback, obs.reward ?? null, obs.done);
+  if (obs.feedback) renderFeedback(obs.feedback, obs.reward, obs.done);
   else $("feedback-box").classList.add("hidden");
 
   // Done state
@@ -154,7 +178,7 @@ function renderObs(obs) {
     $("payload-input").focus();
   }
 
-  // Hide error banner on successful render
+  // Hide error banner on success
   $("error-banner").classList.add("hidden");
 }
 
@@ -211,8 +235,6 @@ async function refreshState() {
 function appendLog(step, action, payload, reward, feedback) {
   episodeLog.push({ step, action, payload, reward, feedback });
   const list = $("log-list");
-
-  // Clear placeholder on first entry
   if (episodeLog.length === 1) list.innerHTML = "";
 
   const hasScore = reward !== null && reward !== undefined;
@@ -232,7 +254,6 @@ function appendLog(step, action, payload, reward, feedback) {
     <p class="font-body text-xs text-on-surface-variant leading-relaxed mb-1.5 line-clamp-2">${payload}</p>
     <p class="font-body text-xs text-on-surface/70 leading-relaxed">${feedback}</p>`;
   list.prepend(row);
-
   $("log-count").textContent = `${episodeLog.length} step${episodeLog.length > 1 ? "s" : ""}`;
 }
 
@@ -241,7 +262,10 @@ async function startEpisode(taskName) {
   showSpinner(true);
   setStatus("Starting episode…");
   try {
-    const obs = await apiFetch("/reset", "POST", { task_name: taskName });
+    // OpenEnv ResetRequest: { seed?, episode_id?, ...extra_kwargs }
+    // Our env.reset() accepts task_name as a keyword arg
+    const result = await apiFetch("/reset", "POST", { task_name: taskName });
+    const obs = parseEnvResponse(result);
     currentObs = obs;
     episodeLog = [];
     $("log-list").innerHTML = `
@@ -257,8 +281,9 @@ async function startEpisode(taskName) {
     await refreshState();
   } catch (e) {
     setStatus("Reset failed", false);
-    showError(e.message);
+    showError(`Could not start episode: ${e.message}`);
     showToast("Failed to start episode", "error");
+    console.error("Reset error:", e);
   } finally {
     showSpinner(false);
   }
@@ -279,36 +304,34 @@ async function submitStep() {
   showSpinner(true);
   setStatus("Processing step…");
   try {
+    // OpenEnv StepRequest: { action: { ...action_fields }, timeout_s?, request_id? }
     const result = await apiFetch("/step", "POST", {
-      action_type: actionType,
-      payload,
-      reasoning,
+      action: {
+        action_type: actionType,
+        payload,
+        reasoning,
+      }
     });
 
-    // Handle both Gymnasium tuple [obs, reward, done] and direct object
-    const obs    = Array.isArray(result) ? result[0] : result;
-    const reward = Array.isArray(result) ? result[1] : obs.reward;
-    const done   = Array.isArray(result) ? result[2] : obs.done;
-
-    obs.reward = reward;
-    obs.done   = done;
+    const obs = parseEnvResponse(result);
     currentObs = obs;
 
-    appendLog(obs.step_number, actionType, payload, reward, obs.feedback ?? "");
+    appendLog(obs.step_number, actionType, payload, obs.reward, obs.feedback);
     renderObs(obs);
     $("payload-input").value = "";
     $("reasoning-input").value = "";
 
-    if (done) {
+    if (obs.done) {
       setStatus("Episode complete", true);
-      showToast(`Episode complete — Score: ${scorePercent(reward)}/100`, reward >= 0.5 ? "success" : "info");
+      showToast(`Episode complete — Score: ${scorePercent(obs.reward)}/100`, obs.reward >= 0.5 ? "success" : "info");
     } else {
       setStatus("Environment active", true);
-      showToast(`Step ${obs.step_number} graded: ${scorePercent(reward)}/100`, "info");
+      showToast(`Step ${obs.step_number} graded: ${scorePercent(obs.reward)}/100`, "info");
     }
   } catch (e) {
     setStatus("Step failed", false);
     showToast(`Step failed: ${e.message}`, "error");
+    console.error("Step error:", e);
   } finally {
     showSpinner(false);
   }
@@ -321,14 +344,8 @@ function showError(msg) {
 }
 
 // ── Mobile sidebar ───────────────────────────────────────────────────────────
-function openSidebar() {
-  $("sidebar").classList.remove("-translate-x-full");
-  $("sidebar-overlay").classList.add("show");
-}
-function closeSidebar() {
-  $("sidebar").classList.add("-translate-x-full");
-  $("sidebar-overlay").classList.remove("show");
-}
+function openSidebar()  { $("sidebar").classList.remove("-translate-x-full"); $("sidebar-overlay").classList.add("show"); }
+function closeSidebar() { $("sidebar").classList.add("-translate-x-full");    $("sidebar-overlay").classList.remove("show"); }
 
 // ── Copy clause ──────────────────────────────────────────────────────────────
 function copyClause() {
@@ -342,10 +359,8 @@ function copyClause() {
 document.querySelectorAll("[data-task]").forEach(link => {
   link.addEventListener("click", e => {
     e.preventDefault();
-    const task = link.dataset.task;
-    currentTask = task;
+    currentTask = link.dataset.task;
 
-    // Update active styles
     document.querySelectorAll(".task-nav").forEach(l => {
       l.classList.remove("bg-primary/8", "text-primary", "border-primary", "font-bold");
       l.classList.add("text-on-surface-variant", "border-transparent");
@@ -353,7 +368,7 @@ document.querySelectorAll("[data-task]").forEach(link => {
     link.classList.add("bg-primary/8", "text-primary", "border-primary", "font-bold");
     link.classList.remove("text-on-surface-variant", "border-transparent");
 
-    startEpisode(task);
+    startEpisode(currentTask);
     closeSidebar();
   });
 });
@@ -364,29 +379,20 @@ $("analyze-btn").addEventListener("click", () => {
   else submitStep();
 });
 
-$("new-doc-btn").addEventListener("click", () => startEpisode(currentTask));
-$("restart-btn").addEventListener("click", () => startEpisode(currentTask));
-$("retry-btn").addEventListener("click", () => startEpisode(currentTask));
-
-$("clear-btn").addEventListener("click", () => {
-  $("payload-input").value = "";
-  $("reasoning-input").value = "";
-  $("payload-input").focus();
-});
-
+$("new-doc-btn").addEventListener("click",  () => startEpisode(currentTask));
+$("restart-btn").addEventListener("click",  () => startEpisode(currentTask));
+$("retry-btn").addEventListener("click",    () => startEpisode(currentTask));
+$("clear-btn").addEventListener("click",    () => { $("payload-input").value = ""; $("reasoning-input").value = ""; $("payload-input").focus(); });
 $("copy-clause-btn").addEventListener("click", copyClause);
-
-// Mobile menu
 $("menu-btn").addEventListener("click", openSidebar);
 $("sidebar-overlay").addEventListener("click", closeSidebar);
 
-// ── Keyboard shortcut: Ctrl+Enter to submit ──────────────────────────────────
+// ── Keyboard shortcuts ───────────────────────────────────────────────────────
 document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
     e.preventDefault();
     if (currentObs && !currentObs.done) submitStep();
   }
-  // Escape closes mobile sidebar
   if (e.key === "Escape") closeSidebar();
 });
 
@@ -400,10 +406,11 @@ window.currentTask = currentTask;
     await apiFetch("/health");
     setStatus("Environment active", true);
     await startEpisode(currentTask);
-  } catch {
+  } catch (e) {
     setStatus("Backend offline", false);
     showError("Could not reach the backend. Is the server running?");
     $("clause-text").textContent = "Could not reach backend.";
     $("clause-text").style.opacity = "0.4";
+    console.error("Boot error:", e);
   }
 })();
