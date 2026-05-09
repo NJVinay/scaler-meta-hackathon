@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Contract Clause Analyzer — OpenEnv</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700;800&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "on-tertiary-container": "#3a2020", "on-secondary-fixed": "#2a2420",
+        "on-background": "#3a302a", "surface-container-low": "#f6f0e8",
+        "on-error-container": "#7a1a10", "tertiary": "#8c3c3c",
+        "outline-variant": "#d8d0c8", "on-surface-variant": "#605850",
+        "on-secondary": "#ffffff", "primary": "#c2652a",
+        "on-primary-fixed-variant": "#8a4518", "secondary-fixed": "#eae2da",
+        "primary-fixed-dim": "#f0a878", "on-surface": "#3a302a",
+        "tertiary-fixed": "#fce0e0", "secondary-fixed-dim": "#cec6be",
+        "surface-container-highest": "#e6e0d6", "on-tertiary-fixed": "#2e1515",
+        "inverse-surface": "#3a302a", "error-container": "#fce4e0",
+        "on-primary-fixed": "#401a08", "inverse-on-surface": "#faf5ee",
+        "on-secondary-container": "#605850", "on-tertiary-fixed-variant": "#6e3030",
+        "tertiary-fixed-dim": "#e8a0a0", "secondary-container": "#eae2da",
+        "primary-container": "#e08850", "surface-container-lowest": "#ffffff",
+        "background": "#faf5ee", "tertiary-container": "#d47070",
+        "surface-dim": "#dcd6cc", "inverse-primary": "#f0a878",
+        "on-error": "#ffffff", "on-tertiary": "#ffffff", "on-primary": "#ffffff",
+        "surface-container-high": "#ece6dc", "secondary": "#78706a",
+        "primary-fixed": "#fbe8d8", "outline": "#9a9088", "error": "#c0392b",
+        "on-primary-container": "#fbe8d8", "surface-variant": "#ece6dc",
+        "surface-bright": "#faf5ee", "surface-tint": "#c2652a",
+        "surface": "#faf5ee", "on-secondary-fixed-variant": "#504840",
+        "surface-container": "#f2ece4"
+      },
+      borderRadius: { DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px" },
+      fontFamily: {
+        headline: ["EB Garamond", "serif"], display: ["EB Garamond", "serif"],
+        body: ["Manrope", "sans-serif"], label: ["Manrope", "sans-serif"]
+      },
+      boxShadow: { "warm-soft": "0 2px 16px rgba(58,48,42,0.04)" }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: 'Manrope', sans-serif; }
+  h1,h2,h3,h4,h5,h6,.font-headline { font-family: 'EB Garamond', serif; }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24; }
+  .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1; }
+  textarea { resize: vertical; }
+  #spinner { display:none; }
+  #spinner.show { display:inline-block; }
+</style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex selection:bg-primary-container selection:text-on-primary-container">
+
+<!-- ── Sidebar ── -->
+<nav class="bg-surface-container backdrop-blur-xl fixed left-0 top-0 h-full w-[280px] z-50 border-r border-outline-variant/30 flex flex-col py-6 space-y-4 shadow-warm-soft hidden md:flex">
+  <div class="px-6 mb-8 flex items-center space-x-4">
+    <div class="w-12 h-12 rounded-full overflow-hidden border border-outline-variant/50 bg-surface flex-shrink-0 flex items-center justify-center bg-primary/10">
+      <span class="material-symbols-outlined text-primary text-2xl filled">balance</span>
+    </div>
+    <div>
+      <h1 class="font-headline text-2xl font-semibold tracking-tight text-primary">Legal Intelligence</h1>
+      <p class="font-label text-xs text-on-surface-variant tracking-wider uppercase mt-1">OpenEnv · Deterministic</p>
+    </div>
+  </div>
+
+  <!-- New episode CTA -->
+  <div class="px-6 mb-6">
+    <button id="new-doc-btn" class="w-full bg-primary text-on-primary font-label text-sm font-semibold py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:bg-primary/90 transition-colors duration-300 shadow-warm-soft">
+      <span class="material-symbols-outlined text-[20px]">add</span>
+      <span>New Episode</span>
+    </button>
+  </div>
+
+  <!-- Task nav -->
+  <div class="flex-1 px-4 space-y-2">
+    <a data-task="clause-classify"
+       class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-secondary-container/20 text-primary border-l-2 border-primary font-bold transition-all duration-300 translate-x-1 cursor-pointer">
+      <span class="material-symbols-outlined text-[22px] filled">category</span>
+      <div class="leading-tight">
+        <div class="font-label text-sm">Clause Classification</div>
+        <div class="font-label text-[10px] text-on-surface-variant opacity-70 uppercase tracking-wider">Easy · 1 step</div>
+      </div>
+    </a>
+    <a data-task="risk-assess"
+       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-on-surface-variant opacity-70 hover:text-primary hover:bg-white/5 transition-all duration-300 hover:translate-x-1 cursor-pointer">
+      <span class="material-symbols-outlined text-[22px]">gavel</span>
+      <div class="leading-tight">
+        <div class="font-label text-sm">Risk Assessment</div>
+        <div class="font-label text-[10px] text-on-surface-variant opacity-70 uppercase tracking-wider">Medium · 4 steps</div>
+      </div>
+    </a>
+    <a data-task="clause-rewrite"
+       class="flex items-center space-x-3 px-4 py-3 rounded-lg text-on-surface-variant opacity-70 hover:text-primary hover:bg-white/5 transition-all duration-300 hover:translate-x-1 cursor-pointer">
+      <span class="material-symbols-outlined text-[22px]">edit_note</span>
+      <div class="leading-tight">
+        <div class="font-label text-sm">Clause Rewrite</div>
+        <div class="font-label text-[10px] text-on-surface-variant opacity-70 uppercase tracking-wider">Hard · 3 steps</div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Score sidebar -->
+  <div class="mx-4 p-4 bg-surface-container-low rounded-xl border border-outline-variant/40">
+    <div class="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-3">Cumulative Score</div>
+    <div class="flex items-end space-x-1 mb-2">
+      <span id="cumulative-score" class="font-headline text-3xl font-semibold text-primary">—</span>
+    </div>
+    <div class="w-full bg-outline-variant/50 h-1.5 rounded-full">
+      <div id="cumulative-bar" class="h-1.5 rounded-full transition-all duration-500 w-0" style="background:#c2652a"></div>
+    </div>
+    <div class="font-label text-[10px] text-on-surface-variant mt-2">
+      Episode: <span id="episode-id" class="font-semibold">—</span>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="px-4 border-t border-outline-variant/30 pt-4 space-y-2">
+    <a href="/docs" target="_blank" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-on-surface-variant opacity-70 hover:text-primary hover:bg-white/5 transition-all duration-300">
+      <span class="material-symbols-outlined text-[20px]">description</span>
+      <span class="font-label text-xs uppercase tracking-wider">API Docs</span>
+    </a>
+    <a href="/health" target="_blank" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-on-surface-variant opacity-70 hover:text-primary hover:bg-white/5 transition-all duration-300">
+      <span class="material-symbols-outlined text-[20px]">monitor_heart</span>
+      <span class="font-label text-xs uppercase tracking-wider">Health</span>
+    </a>
+  </div>
+</nav>
+
+<!-- ── Main ── -->
+<div class="flex-1 flex flex-col md:ml-[280px] min-h-screen">
+
+  <!-- Top bar -->
+  <header class="bg-surface/80 backdrop-blur-lg top-0 z-40 border-b border-outline-variant/30 flex items-center justify-between px-8 h-16 w-full sticky shadow-warm-soft">
+    <div class="flex items-center space-x-8 h-full">
+      <div class="font-headline text-xl font-bold text-primary tracking-tight md:hidden">Clause Analyzer</div>
+      <nav class="hidden md:flex space-x-6 h-full items-center">
+        <span id="step-counter" class="font-label text-sm text-on-surface-variant">—</span>
+      </nav>
+    </div>
+    <div class="flex items-center space-x-4">
+      <!-- Spinner -->
+      <svg id="spinner" class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+      </svg>
+      <div class="h-6 w-px bg-outline-variant/50 mx-2"></div>
+      <button id="status-badge" class="flex items-center space-x-2 text-primary font-label text-sm font-semibold hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors duration-200">
+        <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+        <span>Connecting…</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Canvas -->
+  <main class="flex-1 p-6 md:p-12 lg:p-16 max-w-5xl mx-auto w-full">
+
+    <!-- Context header -->
+    <div class="mb-10 border-b border-outline-variant/40 pb-8">
+      <div class="flex items-center space-x-2 text-sm font-label text-on-surface-variant mb-4 tracking-wide uppercase">
+        <span>Task:</span>
+        <span id="doc-ref" class="font-semibold text-primary">—</span>
+      </div>
+      <h2 id="section-title" class="font-headline text-4xl md:text-5xl font-medium text-on-background leading-tight max-w-3xl">
+        Loading environment…
+      </h2>
+    </div>
+
+    <!-- Done banner -->
+    <div id="done-banner" class="hidden mb-8 bg-primary/10 border border-primary/30 rounded-xl px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="material-symbols-outlined text-primary filled">check_circle</span>
+        <span class="font-label text-sm font-semibold text-primary">Episode complete. Start a new one.</span>
+      </div>
+      <button id="restart-btn"
+        class="bg-primary text-on-primary font-label text-xs font-semibold py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors">
+        New Episode
+      </button>
+    </div>
+
+    <div class="space-y-10">
+
+      <!-- Source clause -->
+      <section>
+        <h3 class="font-headline text-2xl text-tertiary mb-5 flex items-center">
+          <span class="material-symbols-outlined mr-3 font-light text-[28px]">format_quote</span>
+          Source Clause
+        </h3>
+        <div class="bg-surface-container-low p-8 md:p-10 rounded-xl border border-outline-variant/60 shadow-warm-soft relative">
+          <div class="absolute top-0 left-0 w-1 h-full bg-primary rounded-l-xl"></div>
+          <p id="clause-text" class="font-headline text-xl leading-relaxed text-on-surface">
+            Loading clause…
+          </p>
+        </div>
+      </section>
+
+      <!-- Instructions -->
+      <section>
+        <h3 class="font-headline text-2xl text-primary mb-5 flex items-center">
+          <span class="material-symbols-outlined mr-3 font-light text-[28px]">psychology</span>
+          Instructions
+        </h3>
+        <div class="bg-white p-6 rounded-xl border border-outline-variant/60 shadow-warm-soft">
+          <pre id="instructions-box" class="font-body text-sm leading-relaxed text-on-surface whitespace-pre-wrap"></pre>
+        </div>
+      </section>
+
+      <!-- Agent input -->
+      <section>
+        <h3 class="font-headline text-2xl text-primary mb-5 flex items-center">
+          <span class="material-symbols-outlined mr-3 font-light text-[28px]">send</span>
+          Submit Action
+        </h3>
+        <div class="bg-white p-8 rounded-xl border border-outline-variant/60 shadow-warm-soft space-y-5">
+
+          <!-- Action type -->
+          <div>
+            <label class="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-2 block">Action Type</label>
+            <select id="action-select"
+              class="w-full font-body text-sm border border-outline-variant rounded-lg px-4 py-2.5 bg-surface-container-low text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+            </select>
+          </div>
+
+          <!-- Payload -->
+          <div>
+            <label class="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-2 block">
+              Response / Payload <span class="text-error">*</span>
+            </label>
+            <textarea id="payload-input" rows="5" placeholder="Enter your answer here…"
+              class="w-full font-body text-sm border border-outline-variant rounded-lg px-4 py-3 bg-surface-container-low text-on-surface focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/50">
+            </textarea>
+          </div>
+
+          <!-- Reasoning (optional) -->
+          <div>
+            <label class="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-2 block">
+              Reasoning / Chain-of-thought <span class="text-on-surface-variant/50 font-normal normal-case">(optional)</span>
+            </label>
+            <textarea id="reasoning-input" rows="2" placeholder="Optional: explain your thinking…"
+              class="w-full font-body text-sm border border-outline-variant rounded-lg px-4 py-3 bg-surface-container-low text-on-surface focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/50">
+            </textarea>
+          </div>
+
+          <div class="flex items-center space-x-4 pt-2">
+            <button id="analyze-btn"
+              class="bg-primary text-on-primary font-label text-sm font-semibold py-2.5 px-7 rounded-lg hover:bg-primary/90 transition-colors shadow-warm-soft disabled:opacity-50 disabled:cursor-not-allowed">
+              Submit Step
+            </button>
+            <button id="clear-btn"
+              class="border border-outline-variant text-on-surface font-label text-sm font-semibold py-2.5 px-5 rounded-lg hover:bg-surface-container-highest transition-colors">
+              Clear
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Grader feedback -->
+      <section id="feedback-box" class="hidden bg-surface-container-low p-8 rounded-xl border border-outline-variant/60 shadow-warm-soft">
+        <!-- populated by JS -->
+      </section>
+
+      <!-- Episode log -->
+      <section>
+        <h3 class="font-headline text-2xl text-on-surface-variant mb-5 flex items-center">
+          <span class="material-symbols-outlined mr-3 font-light text-[28px]">history</span>
+          Episode Log
+        </h3>
+        <div id="log-list" class="bg-white rounded-xl border border-outline-variant/60 shadow-warm-soft px-6 py-4 min-h-[60px] font-body text-sm text-on-surface-variant/60">
+          <p class="italic">No steps yet.</p>
+        </div>
+      </section>
+
+    </div>
+    <div class="h-24"></div>
+  </main>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

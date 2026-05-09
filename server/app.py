@@ -43,13 +43,25 @@ except ImportError:
     pass
 
 
-# ── Root route (For HF Spaces UI) ──
+# ── Static files (index.html + app.js) ──
+from fastapi.responses import FileResponse, JSONResponse
+
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 @app.get("/")
 async def root():
-    return {
-        "message": "Contract Clause Analyzer is running!",
-        "endpoints": ["/reset", "/step", "/state", "/health", "/docs"],
-    }
+    index_path = os.path.join(_root, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path, media_type="text/html")
+    return {"message": "Contract Clause Analyzer is running!",
+            "endpoints": ["/reset", "/step", "/state", "/health", "/docs"]}
+
+@app.get("/app.js")
+async def serve_js():
+    js_path = os.path.join(_root, "app.js")
+    if os.path.exists(js_path):
+        return FileResponse(js_path, media_type="application/javascript")
+    return JSONResponse({"error": "app.js not found"}, status_code=404)
 
 
 # ── Suppress UI 404 noise in HF Logs ──
